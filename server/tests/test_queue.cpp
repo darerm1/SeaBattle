@@ -19,21 +19,6 @@ protected:
     std::shared_ptr<Player> p1, p2, p3, p4;
 };
 
-TEST_F(QueueTest, PushAndPopFront) {
-    Queue q;
-    q.push_back(p1);
-    q.push_back(p2);
-    EXPECT_EQ(q.size(), 2);
-    
-    auto front = q.pop_front();
-    EXPECT_EQ(front->get_id(), 1);
-    EXPECT_EQ(q.size(), 1);
-    
-    front = q.pop_front();
-    EXPECT_EQ(front->get_id(), 2);
-    EXPECT_TRUE(q.is_empty());
-}
-
 TEST_F(QueueTest, Remove) {
     Queue q;
     q.push_back(p1);
@@ -43,10 +28,14 @@ TEST_F(QueueTest, Remove) {
     q.remove(2);
     EXPECT_EQ(q.size(), 2);
     
-    auto front = q.pop_front();
-    EXPECT_EQ(front->get_id(), 1);
-    front = q.pop_front();
-    EXPECT_EQ(front->get_id(), 3);
+    auto pair = q.make_game_pair();
+    ASSERT_NE(pair.first, nullptr);
+    ASSERT_NE(pair.second, nullptr);
+    int id1 = pair.first->get_id();
+    int id2 = pair.second->get_id();
+    EXPECT_TRUE((id1 == 1 && id2 == 3) || (id1 == 3 && id2 == 1));
+    
+    EXPECT_EQ(q.size(), 0);
 }
 
 TEST_F(QueueTest, FindOpponentExactMatch) {
@@ -55,26 +44,35 @@ TEST_F(QueueTest, FindOpponentExactMatch) {
     q.push_back(p2); // 1100
     q.push_back(p3); // 1050
     
-    auto opponent = q.find_opponent(p2);
-    ASSERT_NE(opponent, nullptr);
-    EXPECT_EQ(opponent->get_id(), 3);
-    EXPECT_EQ(q.size(), 2);
+    auto pair = q.make_game_pair();
+    ASSERT_NE(pair.first, nullptr);
+    ASSERT_NE(pair.second, nullptr);
+    EXPECT_EQ(pair.first->get_id(), 1);
+    EXPECT_EQ(pair.second->get_id(), 3);
+    
+    EXPECT_EQ(q.size(), 1);
+    
+    auto pair2 = q.make_game_pair();
+    EXPECT_EQ(pair2.first, nullptr);
+    EXPECT_EQ(pair2.second, nullptr);
+    EXPECT_EQ(q.size(), 1);
 }
 
 TEST_F(QueueTest, FindOpponentWhenQueueContainsOnlyOne) {
     Queue q;
     q.push_back(p1);
     
-    auto opponent = q.find_opponent(p2);
-    ASSERT_NE(opponent, nullptr);
-    EXPECT_EQ(opponent->get_id(), 1);
-    EXPECT_EQ(q.size(), 0);
+    auto pair = q.make_game_pair();
+    EXPECT_EQ(pair.first, nullptr);
+    EXPECT_EQ(pair.second, nullptr);
+    EXPECT_EQ(q.size(), 1);
 }
 
 TEST_F(QueueTest, FindOpponentEmptyQueue) {
     Queue q;
-    auto opponent = q.find_opponent(p1);
-    EXPECT_EQ(opponent, nullptr);
+    auto pair = q.make_game_pair();
+    EXPECT_EQ(pair.first, nullptr);
+    EXPECT_EQ(pair.second, nullptr);
 }
 
 TEST_F(QueueTest, FindOpponentWithSameRating) {
@@ -84,9 +82,13 @@ TEST_F(QueueTest, FindOpponentWithSameRating) {
     q.push_back(p5); //1100
     q.push_back(p2); // 1100
     
-    auto opponent = q.find_opponent(p2);
-    ASSERT_NE(opponent, nullptr);
-    EXPECT_EQ(opponent->get_id(), 5);
+    auto pair = q.make_game_pair();
+    ASSERT_NE(pair.first, nullptr);
+    ASSERT_NE(pair.second, nullptr);
+    int id1 = pair.first->get_id();
+    int id2 = pair.second->get_id();
+    EXPECT_TRUE((id1 == 5 && id2 == 2) || (id1 == 2 && id2 == 5));
+    EXPECT_EQ(q.size(), 0);
 }
 
 TEST_F(QueueTest, FindOpponentWithMultipleCandidates) {
@@ -100,7 +102,15 @@ TEST_F(QueueTest, FindOpponentWithMultipleCandidates) {
     q.push_back(p1); // 1000
     q.push_back(p2); // 1100
     
-    auto opponent = q.find_opponent(p1); // 1000
-    ASSERT_NE(opponent, nullptr);
-    EXPECT_EQ(opponent->get_id(), 7); // 950
+    auto pair = q.make_game_pair();
+    ASSERT_NE(pair.first, nullptr);
+    ASSERT_NE(pair.second, nullptr);
+    EXPECT_EQ(pair.first->get_id(), 6);
+    EXPECT_EQ(pair.second->get_id(), 7);
+    
+    auto pair2 = q.make_game_pair();
+    ASSERT_NE(pair2.first, nullptr);
+    ASSERT_NE(pair2.second, nullptr);
+    EXPECT_EQ(pair2.first->get_id(), 1);
+    EXPECT_EQ(pair2.second->get_id(), 2);
 }
