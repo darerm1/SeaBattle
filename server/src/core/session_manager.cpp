@@ -7,9 +7,7 @@ SessionManager::SessionManager() = default;
 SessionManager::~SessionManager() = default;
 
 void SessionManager::add_to_queue(std::shared_ptr<Player> player) {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
     queue_.push_back(player);
-    player->set_status(PlayerStatus::WAITING);
     Logger::log("Player ", player->get_id(), " added in queue");
     try_match_players();
 }
@@ -22,11 +20,6 @@ ShotResult SessionManager::make_move(int player_id, int game_id, int x, int y) {
     }
     
     ShotResult result = session->make_move(player_id, x, y);
-    
-    const auto& first_field = session->get_first_field();
-    const auto& second_field = session->get_second_field();
-    const std::string& first_login = session->get_first_login();
-    const std::string& second_login = session->get_second_login();
     
     if (session->game_is_over()) {
         end_game(game_id);
@@ -43,12 +36,7 @@ bool SessionManager::place_ship(int player_id, int game_id, int length, int x, i
     }
 
     bool result = session->place_ship(player_id, length, x, y, is_horizontal);
-    Logger::log("Ship placement ", result ? "successful" : "failed");
-    const auto& first_field = session->get_first_field();
-    const auto& second_field = session->get_second_field();
-    const std::string& first_login = session->get_first_login();
-    const std::string& second_login = session->get_second_login();
-    
+    Logger::log("Ship placement ", result ? "successful" : "failed");    
     return result;
 }
 
@@ -62,10 +50,6 @@ bool SessionManager::clear_field(int player_id, int game_id) {
     
     session->clear_field(player_id);
     Logger::log("Field cleared for player ", player_id);
-    const auto& first_field = session->get_first_field();
-    const auto& second_field = session->get_second_field();
-    const std::string& first_login = session->get_first_login();
-    const std::string& second_login = session->get_second_login();
     return true;
 }
 
@@ -76,22 +60,12 @@ void SessionManager::set_player_ready(int player_id, int game_id) {
         return;
     }
     session->set_player_ready(player_id);
-    if (session->game_is_started()) {
-        const auto& first_field = session->get_first_field();
-        const auto& second_field = session->get_second_field();
-        const auto& first_login = session->get_first_login();
-        const auto& second_login = session->get_second_login();
-    }
 }
 
 std::shared_ptr<Session> SessionManager::get_session(int game_id) {
     std::lock_guard<std::mutex> lock(sessions_mutex_);
-    auto it = std::find_if(sessions_.begin(), sessions_.end(), [game_id](const auto& session) { return session->get_game_id() == game_id; });
-    
-    if (it != sessions_.end()) {
-        return *it;
-    }
-    return nullptr;
+    auto it = sessions_.find(game_id);
+    return it != sessions_.end() ? it->second : nullptr;
 }
 
 int SessionManager::get_player_game(int player_id) {
@@ -104,11 +78,8 @@ int SessionManager::get_player_game(int player_id) {
 }
 
 void SessionManager::player_disconnected(int player_id) {
-    {
-        std::lock_guard<std::mutex> lock(queue_mutex_);
-        queue_.remove(player_id);
-        Logger::log("Player ", player_id, " removed from queue");
-    }
+    queue_.remove(player_id);
+    Logger::log("Player ", player_id, " removed from queue");
     
     int game_id = get_player_game(player_id);
     if (game_id != -1) {
@@ -122,9 +93,9 @@ void SessionManager::check_timeouts() {
     std::vector<int> games_to_end;
     {
         std::lock_guard<std::mutex> lock(sessions_mutex_);        
-        for (auto& session_ptr : sessions_) {
-            if (session_ptr->check_timeout()) {
-                int game_id = session_ptr->get_game_id();
+        for (auto& [id, session] : sessions_) {
+            if (session->check_timeout()) {
+                int game_id = session->get_game_id();
                 games_to_end.push_back(game_id);
                 Logger::log("Game ", game_id, " timeout detected");
             }
@@ -136,24 +107,22 @@ void SessionManager::check_timeouts() {
     }
 }
 
-void SessionManager::try_match_players() { // очередь лочится в add_to_queue, откуда вызывается этот метод. При использовании его где-то ещё, помнить о локе очереди и что тут его нет
-    //std::lock_guard<std::mutex> lock(queue_mutex_);
+void SessionManager::try_match_players() {
     Logger::log("Trying to match players. Queue size: ", queue_.size());
     while (queue_.size() >= 2) {
-        std::shared_ptr<Player> first_player = queue_.pop_front();
-        std::shared_ptr<Player> second_player = queue_.find_opponent(first_player);
-        if (!second_player) {
-            Logger::log("No suitable opponent found for player ", first_player->get_id(), " - returning to queue");
-            queue_.push_back(first_player);
+        auto players = queue_.make_game_pair();
+        if (players.first == nullptr || players.second == nullptr) {
+            Logger::log("Failed to match players. Queue size: ", queue_.size());
             break;
         }
         
-        Logger::log("Matched players ", first_player->get_id(), " and ", second_player->get_id());
-        create_game_session(first_player, second_player);
+        Logger::log("Matched players ", players.first->get_id(), " and ", players.second->get_id());
+        create_game_session(players.first, players.second);
     }
 }
 
 void SessionManager::create_game_session(std::shared_ptr<Player> p1, std::shared_ptr<Player> p2) {
+    std::lock_guard<std::mutex> lock(sessions_mutex_);
     int game_id;
     if (sessions_.empty()) game_id = 0;
     else game_id = sessions_[sessions_.size()-1]->get_game_id() + 1;
@@ -161,25 +130,22 @@ void SessionManager::create_game_session(std::shared_ptr<Player> p1, std::shared
     Logger::log("Creating game session ", game_id, " for players ", p1->get_id(), " and ", p2->get_id());
     std::shared_ptr<Session> session = std::make_shared<Session>(game_id, p1, p2);
     
-    {
-        std::lock_guard<std::mutex> lock(sessions_mutex_);
-        sessions_.push_back(session);
-        player_to_game_[p1->get_id()] = game_id;
-        player_to_game_[p2->get_id()] = game_id;
-    }
+    sessions_[game_id] = session;
+    player_to_game_[p1->get_id()] = game_id;
+    player_to_game_[p2->get_id()] = game_id;
 }
 
 void SessionManager::end_game(int game_id) {
     Logger::log("Ending game ", game_id);
     std::lock_guard<std::mutex> lock(sessions_mutex_);
     
-    auto it = std::find_if(sessions_.begin(), sessions_.end(), [game_id](const auto& session_ptr) { return session_ptr->get_game_id() == game_id; });
+    auto it = sessions_.find(game_id);
     if (it == sessions_.end()) { 
         Logger::log("ERROR: Game ", game_id, " not found for ending");
         return;
     }
     
-    std::shared_ptr<Session> session = *it;
+    std::shared_ptr<Session> session = it->second;
 
     session->end_game();
     

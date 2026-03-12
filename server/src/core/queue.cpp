@@ -8,24 +8,19 @@ Queue::Queue() = default;
 Queue::~Queue() = default;
 
 void Queue::push_back(std::shared_ptr<Player> player) {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
     queue_.push_back(player);
+    player->set_status(PlayerStatus::WAITING);
 }
 
 void Queue::remove(int player_id) {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
     auto it = std::find_if(queue_.begin(), queue_.end(), [player_id](const auto& p) { return p->get_id() == player_id; });
     
     if (it != queue_.end()) {
         (*it)->set_status(PlayerStatus::OFFLINE);
         queue_.erase(it);
     }
-}
-
-std::shared_ptr<Player> Queue::pop_front() {
-    if (queue_.empty())
-        return nullptr;
-    std::shared_ptr<Player> player = queue_[0];
-    queue_.erase(queue_.begin());
-    return player;
 }
 
 std::shared_ptr<Player> Queue::find_opponent(std::shared_ptr<Player> player) {
@@ -57,4 +52,20 @@ bool Queue::is_empty() const {
 
 int Queue::size() const {
     return queue_.size();
+}
+
+std::pair<std::shared_ptr<Player>, std::shared_ptr<Player>> Queue::make_game_pair() {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    if (queue_.empty())
+        return std::make_pair(nullptr, nullptr);
+    std::shared_ptr<Player> first_player = queue_[0];
+    queue_.erase(queue_.begin());
+    
+    std::shared_ptr<Player> second_player = find_opponent(first_player);
+    if (!second_player) {
+        queue_.push_back(first_player);
+        return std::make_pair(nullptr, nullptr);
+    }
+
+    return std::make_pair(first_player, second_player);
 }

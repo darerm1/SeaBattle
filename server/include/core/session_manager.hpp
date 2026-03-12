@@ -3,7 +3,7 @@
 #include "queue.hpp"
 #include "session.hpp"
 #include <mutex>
-#include <map>
+#include <unordered_map>
 
 class SessionManager {
 public:
@@ -37,9 +37,8 @@ private:
     void end_game(int game_id);
 
     Queue queue_;
-    std::vector<std::shared_ptr<Session>> sessions_;
-    std::map<int, int> player_to_game_;
+    std::unordered_map<int, std::shared_ptr<Session>> sessions_;
+    std::unordered_map<int, int> player_to_game_;
 
-    std::mutex queue_mutex_;
     std::mutex sessions_mutex_;
 };
