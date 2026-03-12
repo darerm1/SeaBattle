@@ -1,0 +1,40 @@
+build/
+*/build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Зависимости, загруженные через FetchContent
+_deps/
+
+# Компилируемые файлы
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+
+# Исполняемые файлы и тесты
+server/server_demo
+server/run_server_tests
+tests/run_tests
+
+# Логи и временные файлы
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# Редакторы и IDE
+.vscode/
+*.swp
+*.swo
+*~
+
+compile_commands.json
