@@ -6,13 +6,20 @@ set(CORE_SOURCES
     src/core/session_manager.cpp
     src/logger/logger.cpp
 )
+find_package(Boost REQUIRED COMPONENTS system thread)
 
 add_library(seabattle_core STATIC ${CORE_SOURCES})
 
 target_include_directories(seabattle_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 find_package(Threads REQUIRED)
-target_link_libraries(seabattle_core PUBLIC Threads::Threads)
+target_link_libraries(seabattle_core PUBLIC 
+    Boost::thread 
+    Boost::system
+    Threads::Threads
+)
+
+target_compile_definitions(seabattle_core PUBLIC BOOST_THREAD_VERSION=4)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -37,3 +44,29 @@ target_link_libraries(run_server_tests
 target_include_directories(run_server_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_test(NAME ServerTests COMMAND run_server_tests)
+
+#find_package(Boost REQUIRED COMPONENTS system thread)
+find_package(SQLite3 REQUIRED)
+
+set(NETWORK_SOURCES
+    src/network/connection.cpp
+    src/network/network_manager.cpp
+    src/database/database_manager.cpp
+    src/utils/thread_pool.cpp
+    src/auth/auth_manager.cpp
+)
+
+add_library(seabattle_network STATIC ${NETWORK_SOURCES})
+#target_compile_definitions(seabattle_network PRIVATE BOOST_THREAD_VERSION=4)
+target_include_directories(seabattle_network PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(seabattle_network
+    seabattle_core
+    Boost::thread
+    Boost::system
+    SQLite::SQLite3
+    Threads::Threads
+)
+
+add_executable(seabattle_server src/main.cpp)
+target_link_libraries(seabattle_server seabattle_network)
+target_include_directories(seabattle_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

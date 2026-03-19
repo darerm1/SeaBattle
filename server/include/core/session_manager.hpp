@@ -2,30 +2,34 @@
 
 #include "queue.hpp"
 #include "session.hpp"
+#include "shot_result.hpp"
+#include "utils/thread_pool.hpp"
 #include <mutex>
 #include <unordered_map>
+#include <boost/thread/future.hpp>
+#include <atomic>
 
 class SessionManager {
 public:
-    SessionManager();
+    SessionManager(ThreadPool& pool);
 
     ~SessionManager();
 
     void add_to_queue(std::shared_ptr<Player> player);
 
-    ShotResult make_move(int player_id, int game_id, int x, int y);
+    boost::future<ShotResult> make_move(int player_id, int game_id, int x, int y);
 
-    bool place_ship(int player_id, int game_id, int length, int x, int y, bool is_horizontal);
+    boost::future<bool> place_ship(int player_id, int game_id, int length, int x, int y, bool is_horizontal);
 
-    bool clear_field(int player_id, int game_id);
+    boost::future<bool> clear_field(int player_id, int game_id);
 
-    void set_player_ready(int player_id, int game_id);
+    boost::future<void> set_player_ready(int player_id, int game_id);
 
     std::shared_ptr<Session> get_session(int game_id);
     
     int get_player_game(int player_id);
     
-    void player_disconnected(int player_id);
+    boost::future<void> player_disconnected(int player_id);
     
     void check_timeouts();
 
@@ -39,6 +43,8 @@ private:
     Queue queue_;
     std::unordered_map<int, std::shared_ptr<Session>> sessions_;
     std::unordered_map<int, int> player_to_game_;
+    ThreadPool& thread_pool_;
+    std::atomic<int> next_game_id_{0};
 
     std::mutex sessions_mutex_;
 };

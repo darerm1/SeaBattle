@@ -7,10 +7,3 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 enable_testing()
 add_subdirectory(server)
-
-find_package(Boost COMPONENTS system QUIET)
-if(Boost_FOUND)
-    message(STATUS "Boost found: ${Boost_VERSION}")
-else()
-    message(STATUS "Boost not found, building without Boost (some features may be disabled)")
-endif()

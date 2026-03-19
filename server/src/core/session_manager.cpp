@@ -2,64 +2,74 @@
 #include "logger/logger.hpp"
 #include <algorithm>
 
-SessionManager::SessionManager() = default;
+SessionManager::SessionManager(ThreadPool& pool) : thread_pool_(pool) {}
 
 SessionManager::~SessionManager() = default;
 
 void SessionManager::add_to_queue(std::shared_ptr<Player> player) {
-    queue_.push_back(player);
-    Logger::log("Player ", player->get_id(), " added in queue");
-    try_match_players();
+    thread_pool_.enqueue([this, player]() {
+        queue_.push_back(player);
+        Logger::log("Player ", player->get_id(), " added in queue");
+        try_match_players();
+    });
 }
 
-ShotResult SessionManager::make_move(int player_id, int game_id, int x, int y) {
-    std::shared_ptr<Session> session = get_session(game_id);
-    if (!session) {
-        Logger::log("ERROR: Game ", game_id, " not found for player ", player_id);
-        return ShotResult::INVALID;
-    }
-    
-    ShotResult result = session->make_move(player_id, x, y);
-    
-    if (session->game_is_over()) {
-        end_game(game_id);
-    }
-    
-    return result;
+boost::future<ShotResult> SessionManager::make_move(int player_id, int game_id, int x, int y) {
+    return thread_pool_.enqueue([this, player_id, game_id, x, y]() {
+        std::shared_ptr<Session> session = get_session(game_id);
+        if (!session) {
+            Logger::log("ERROR: Game ", game_id, " not found for player ", player_id);
+            return ShotResult::INVALID;
+        }
+        
+        ShotResult result = session->make_move(player_id, x, y);
+        
+        if (session->game_is_over()) {
+            end_game(game_id);
+        }
+        
+        return result;
+    });
 }
 
-bool SessionManager::place_ship(int player_id, int game_id, int length, int x, int y, bool is_horizontal) {
-    std::shared_ptr<Session> session = get_session(game_id);
-    if (!session) {
-        Logger::log("ERROR: Game ", game_id, " not found for ship placement");
-        return false;
-    }
+boost::future<bool> SessionManager::place_ship(int player_id, int game_id, int length, int x, int y, bool is_horizontal) {
+    return thread_pool_.enqueue([this, player_id, game_id, length, x, y, is_horizontal]() {
+        std::shared_ptr<Session> session = get_session(game_id);
+        if (!session) {
+            Logger::log("ERROR: Game ", game_id, " not found for ship placement");
+            return false;
+        }
 
-    bool result = session->place_ship(player_id, length, x, y, is_horizontal);
-    Logger::log("Ship placement ", result ? "successful" : "failed");    
-    return result;
+        bool result = session->place_ship(player_id, length, x, y, is_horizontal);
+        Logger::log("Ship placement ", result ? "successful" : "failed");    
+        return result;
+    });
 }
 
-bool SessionManager::clear_field(int player_id, int game_id) {
-    Logger::log("Player ", player_id, " clearing field in game ", game_id);
-    std::shared_ptr<Session> session = get_session(game_id);
-    if (!session) {
-        Logger::log("ERROR: Game ", game_id, " not found for field clearing");
-        return false;
-    }
-    
-    session->clear_field(player_id);
-    Logger::log("Field cleared for player ", player_id);
-    return true;
+boost::future<bool> SessionManager::clear_field(int player_id, int game_id) {
+    return thread_pool_.enqueue([this, player_id, game_id]() {
+        Logger::log("Player ", player_id, " clearing field in game ", game_id);
+        std::shared_ptr<Session> session = get_session(game_id);
+        if (!session) {
+            Logger::log("ERROR: Game ", game_id, " not found for field clearing");
+            return false;
+        }
+        
+        session->clear_field(player_id);
+        Logger::log("Field cleared for player ", player_id);
+        return true;
+    });
 }
 
-void SessionManager::set_player_ready(int player_id, int game_id) {
-    std::shared_ptr<Session> session = get_session(game_id);
-    if (!session) {
-        Logger::log("ERROR: Game ", game_id, " not found for player ready");
-        return;
-    }
-    session->set_player_ready(player_id);
+boost::future<void> SessionManager::set_player_ready(int player_id, int game_id) {
+    return thread_pool_.enqueue([this, player_id, game_id]() {
+        std::shared_ptr<Session> session = get_session(game_id);
+        if (!session) {
+            Logger::log("ERROR: Game ", game_id, " not found for player ready");
+            return;
+        }
+        session->set_player_ready(player_id);
+    });
 }
 
 std::shared_ptr<Session> SessionManager::get_session(int game_id) {
@@ -77,16 +87,18 @@ int SessionManager::get_player_game(int player_id) {
     return -1;
 }
 
-void SessionManager::player_disconnected(int player_id) {
-    queue_.remove(player_id);
-    Logger::log("Player ", player_id, " removed from queue");
-    
-    int game_id = get_player_game(player_id);
-    if (game_id != -1) {
-        Logger::log("Player ", player_id, " interrupted game ", game_id);
-        end_game(game_id);
-    }
-    Logger::log("Player ", player_id, " disconnected");
+boost::future<void> SessionManager::player_disconnected(int player_id) {
+    return thread_pool_.enqueue([this, player_id]() {
+        queue_.remove(player_id);
+        Logger::log("Player ", player_id, " removed from queue");
+        
+        int game_id = get_player_game(player_id);
+        if (game_id != -1) {
+            Logger::log("Player ", player_id, " interrupted game ", game_id);
+            end_game(game_id);
+        }
+        Logger::log("Player ", player_id, " disconnected");
+    });
 }
 
 void SessionManager::check_timeouts() {
@@ -122,11 +134,9 @@ void SessionManager::try_match_players() {
 }
 
 void SessionManager::create_game_session(std::shared_ptr<Player> p1, std::shared_ptr<Player> p2) {
-    std::lock_guard<std::mutex> lock(sessions_mutex_);
-    int game_id;
-    if (sessions_.empty()) game_id = 0;
-    else game_id = sessions_[sessions_.size()-1]->get_game_id() + 1;
+    int game_id = next_game_id_.fetch_add(1);
     
+    std::lock_guard<std::mutex> lock(sessions_mutex_);
     Logger::log("Creating game session ", game_id, " for players ", p1->get_id(), " and ", p2->get_id());
     std::shared_ptr<Session> session = std::make_shared<Session>(game_id, p1, p2);
     
