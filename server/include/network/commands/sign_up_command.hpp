@@ -2,15 +2,14 @@
 
 #include "base_command.hpp"
 #include "auth/auth_manager.hpp"
-#include "logger/logger.hpp"
 
 class SignUpCommand : public BaseCommand {
 public:
     SignUpCommand(AuthManager& am);
 
-    ~SignUp();
+    ~SignUpCommand();
 
-    void handle(const std::vector<std::string>& args, int player_id) override;
+    void handle(const std::vector<std::string>& args, CommandContext context) override;
 
 private:
     const std::string name_ = "signup";

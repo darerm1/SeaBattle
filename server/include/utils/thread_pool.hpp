@@ -1,8 +1,5 @@
 #pragma once
 
-#include <boost/thread.hpp>
-#include <boost/thread/future.hpp>
-#include <boost/thread/packaged_task.hpp>
 #include <boost/asio.hpp>
 #include <vector>
 #include <queue>
@@ -17,15 +14,16 @@ public:
     ThreadPool(size_t num_threads);
     ~ThreadPool();
 
+    template<typename F, typename Callback>
+    void enqueue(F&& f, Callback&& cb) {
+        boost::asio::post(io_context_, [f = std::forward<F>(f), cb = std::forward<Callback>(cb)]() {
+            cb(f());
+        });
+    }
+
     template<typename F>
-    auto enqueue(F&& f) -> boost::future<decltype(f())> {
-        using return_type = decltype(f());
-        
-        auto task = std::make_shared<boost::packaged_task<return_type>>(std::forward<F>(f));
-        boost::future<return_type> result = task->get_future();
-        
-        boost::asio::post(io_context_, [task]() { (*task)(); });
-        return result;
+    void enqueue(F&& f) {
+        boost::asio::post(io_context_, std::forward<F>(f));
     }
 
     boost::asio::io_context::executor_type get_executor();

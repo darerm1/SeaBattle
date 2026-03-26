@@ -2,11 +2,11 @@
 #include "logger/logger.hpp"
 #include <algorithm>
 
-SessionManager::SessionManager(ThreadPool& pool) : thread_pool_(pool) {}
+SessionManager::SessionManager(ThreadPool& pool, DatabaseManager& db) : thread_pool_(pool), db_manager_(db) {}
 
 SessionManager::~SessionManager() = default;
 
-void SessionManager::add_to_queue(std::shared_ptr<Player> player) {
+void SessionManager::add_to_queue_async(std::shared_ptr<Player> player) {
     thread_pool_.enqueue([this, player]() {
         queue_.push_back(player);
         Logger::log("Player ", player->get_id(), " added in queue");
@@ -14,8 +14,8 @@ void SessionManager::add_to_queue(std::shared_ptr<Player> player) {
     });
 }
 
-boost::future<ShotResult> SessionManager::make_move(int player_id, int game_id, int x, int y) {
-    return thread_pool_.enqueue([this, player_id, game_id, x, y]() {
+void SessionManager::make_move_async(int player_id, int game_id, int x, int y, std::function<void(ShotResult)> callback) {
+    thread_pool_.enqueue([this, player_id, game_id, x, y]() {
         std::shared_ptr<Session> session = get_session(game_id);
         if (!session) {
             Logger::log("ERROR: Game ", game_id, " not found for player ", player_id);
@@ -29,11 +29,11 @@ boost::future<ShotResult> SessionManager::make_move(int player_id, int game_id, 
         }
         
         return result;
-    });
+    }, callback);
 }
 
-boost::future<bool> SessionManager::place_ship(int player_id, int game_id, int length, int x, int y, bool is_horizontal) {
-    return thread_pool_.enqueue([this, player_id, game_id, length, x, y, is_horizontal]() {
+void SessionManager::place_ship_async(int player_id, int game_id, int length, int x, int y, bool is_horizontal, std::function<void(bool)> callback) {
+    thread_pool_.enqueue([this, player_id, game_id, length, x, y, is_horizontal]() {
         std::shared_ptr<Session> session = get_session(game_id);
         if (!session) {
             Logger::log("ERROR: Game ", game_id, " not found for ship placement");
@@ -43,11 +43,11 @@ boost::future<bool> SessionManager::place_ship(int player_id, int game_id, int l
         bool result = session->place_ship(player_id, length, x, y, is_horizontal);
         Logger::log("Ship placement ", result ? "successful" : "failed");    
         return result;
-    });
+    }, callback);
 }
 
-boost::future<bool> SessionManager::clear_field(int player_id, int game_id) {
-    return thread_pool_.enqueue([this, player_id, game_id]() {
+void SessionManager::clear_field_async(int player_id, int game_id, std::function<void(bool)> callback) {
+    thread_pool_.enqueue([this, player_id, game_id]() {
         Logger::log("Player ", player_id, " clearing field in game ", game_id);
         std::shared_ptr<Session> session = get_session(game_id);
         if (!session) {
@@ -58,10 +58,10 @@ boost::future<bool> SessionManager::clear_field(int player_id, int game_id) {
         session->clear_field(player_id);
         Logger::log("Field cleared for player ", player_id);
         return true;
-    });
+    }, callback);
 }
 
-boost::future<void> SessionManager::set_player_ready(int player_id, int game_id) {
+void SessionManager::set_player_ready(int player_id, int game_id) {
     return thread_pool_.enqueue([this, player_id, game_id]() {
         std::shared_ptr<Session> session = get_session(game_id);
         if (!session) {
@@ -87,8 +87,8 @@ int SessionManager::get_player_game(int player_id) {
     return -1;
 }
 
-boost::future<void> SessionManager::player_disconnected(int player_id) {
-    return thread_pool_.enqueue([this, player_id]() {
+void SessionManager::player_disconnected_async(int player_id) {
+    thread_pool_.enqueue([this, player_id]() {
         queue_.remove(player_id);
         Logger::log("Player ", player_id, " removed from queue");
         
@@ -147,23 +147,38 @@ void SessionManager::create_game_session(std::shared_ptr<Player> p1, std::shared
 
 void SessionManager::end_game(int game_id) {
     Logger::log("Ending game ", game_id);
-    std::lock_guard<std::mutex> lock(sessions_mutex_);
-    
-    auto it = sessions_.find(game_id);
-    if (it == sessions_.end()) { 
-        Logger::log("ERROR: Game ", game_id, " not found for ending");
-        return;
+    std::shared_ptr<Session> session = nullptr;
+    int first_player_id, second_player_id, first_rating_new, second_rating_new;
+
+    {
+        std::lock_guard<std::mutex> lock(sessions_mutex_);
+        
+        auto it = sessions_.find(game_id);
+        if (it == sessions_.end()) { 
+            Logger::log("ERROR: Game ", game_id, " not found for ending");
+            return;
+        }
+        
+        session = it->second;
+        
+        std::tie(first_rating_new, second_rating_new) = session->calculate_ratings();
+        std::tie(first_player_id, second_player_id) = session->get_player_ids();
+
+        player_to_game_.erase(first_player_id);
+        player_to_game_.erase(second_player_id);
+        sessions_.erase(it); 
     }
     
-    std::shared_ptr<Session> session = it->second;
+    thread_pool_.enqueue([this, first_player_id, second_player_id, first_rating_new, second_rating_new, session, game_id]() {
+        session->end_game();
 
-    session->end_game();
-    
-    auto [first_player_id, second_player_id] = session->get_player_ids();
-    
-    player_to_game_.erase(first_player_id);
-    player_to_game_.erase(second_player_id);
+        bool result = db_manager_.updateRatings(first_player_id, first_rating_new, second_player_id, second_rating_new);
+        if (result) {
+            Logger::log("Ratings saved to DB successfully.");
+        } else {
+            Logger::log("DB failed to update ratings.");
+        }
 
-    sessions_.erase(it);
-    Logger::log("Game ", game_id, " ended. Winner: ", session->get_winner_id(), ". Players: ", first_player_id, ", ", second_player_id);
+        Logger::log("Game ", game_id, " ended. Winner: ", session->get_winner_id(), ". Players: ", first_player_id, ", ", second_player_id);
+    });
 }

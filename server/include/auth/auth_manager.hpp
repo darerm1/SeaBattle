@@ -3,8 +3,8 @@
 #include "core/player.hpp"
 #include "database/database_manager.hpp"
 #include "utils/thread_pool.hpp"
-#include <boost/thread/future.hpp>
 #include <memory>
+#include <functional>
 #include <string>
 
 class AuthManager {
@@ -13,7 +13,9 @@ public:
 
     ~AuthManager();
     
-    boost::future<std::shared_ptr<Player>> authenticate(const std::string& login, const std::string& password);
+    void authenticate_async(const std::string& login, const std::string& password, std::function<void(std::shared_ptr<Player>)> callback);
+
+    void register_user_async(const std::string& login, const std::string& password, std::function<void(std::shared_ptr<Player>)> callback);
     
 private:
     DatabaseManager& database_manager_;

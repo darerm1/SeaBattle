@@ -1,7 +1,6 @@
 #pragma once
 
 #include "base_command.hpp"
-#include "logger/logger.hpp"
 #include "core/session_manager.hpp"
 
 class MoveCommand : public BaseCommand {
@@ -10,7 +9,7 @@ public:
 
     ~MoveCommand();
 
-    void handle(const std::vector<std::string>& args, int player_id) override;
+    void handle(const std::vector<std::string>& args, CommandContext context) override;
 private:
     SessionManager& session_manager_;
     const std::string name_ = "move";

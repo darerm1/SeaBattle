@@ -9,7 +9,7 @@ public:
 
     ~ClearFieldCommand();
 
-    void handle(const std::vector<std::string>& args, int player_id) override;
+    void handle(const std::vector<std::string>& args, CommandContext context) override;
 
 private:
     const std::string name_ = "clear";

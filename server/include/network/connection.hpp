@@ -6,7 +6,7 @@
 #include "core/session_manager.hpp"
 #include "core/player.hpp"
 #include "auth/auth_manager.hpp"
-#include "base_command.hpp"
+#include "commands/base_command.hpp"
 
 class NetworkManager; 
 
@@ -22,9 +22,9 @@ public:
 
     void send(const std::string& message);
 
-    void set_player_id(int player_id);
+    void set_player(std::shared_ptr<Player> player);
 
-    const int get_player_id() const;
+    const std::shared_ptr<Player> get_player() const;
 
     void process_command(std::string& command);
 
@@ -38,7 +38,7 @@ private:
     SessionManager& session_manager_;
     AuthManager& auth_manager_;
     std::shared_ptr<BaseCommand> command_chain_;
-    int player_id_ = -1;
+    std::shared_ptr<Player> player_ = nullptr;
     boost::asio::ip::tcp::socket socket_;
     boost::asio::streambuf streambuf_;
 };

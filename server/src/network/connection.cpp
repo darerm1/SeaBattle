@@ -36,8 +36,8 @@ void Connection::on_read() {
 void Connection::close_connection() {
     boost::system::error_code ec;
     socket_.close(ec);
-    if (player_id_ != -1) {
-        session_manager_.player_disconnected(player_id_);
+    if (player_ != nullptr) {
+        session_manager_.player_disconnected_async(player_->get_id());
     }
     network_manager_.remove_connection(connection_id_);
 }
@@ -49,12 +49,12 @@ void Connection::send(const std::string& message) {
         });
 }
 
-void Connection::set_player_id(int player_id) {
-    player_id_ = player_id;
+void Connection::set_player(std::shared_ptr<Player> player) {
+    player_ = player;
 }
 
-const int Connection::get_player_id() const {
-    return player_id_;
+const std::shared_ptr<Player> Connection::get_player() const {
+    return player_;
 }
 
 
@@ -71,7 +71,15 @@ void Connection::process_command(std::string& command) {
     }
     
     if (!args.empty() && command_chain_) {
-        command_chain_->handle(args, player_id_);
+        CommandContext context {
+        connection_id_,
+        player_,
+        [self = shared_from_this()](const std::string& msg) { self->send(msg); },
+        [self = shared_from_this()](std::shared_ptr<Player> p) { self->set_player(p); },
+        
+        [self = shared_from_this()]() { self->close_connection(); }
+    };
+
+    command_chain_->handle(args, context);
     }
 }
-

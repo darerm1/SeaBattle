@@ -59,7 +59,7 @@ std::shared_ptr<Player> DatabaseManager::authenticate(const std::string& login, 
     return player;
 }
 
-bool DatabaseManager::updateRating(int player_id, int new_rating) {
+bool DatabaseManager::updateRatings(int first_player_id, int first_new_rating, int second_player_id, int second_new_rating) {
     std::lock_guard<std::mutex> lock(db_mutex_);
 
     if (!db_) {
@@ -67,25 +67,29 @@ bool DatabaseManager::updateRating(int player_id, int new_rating) {
         return false;
     }
 
-    const char* sql = "UPDATE users SET rating = ? WHERE id = ?";
-    sqlite3_stmt* stmt = nullptr;
-    
-    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        Logger::log("Failed to prepare statement in updateRating: ", sqlite3_errmsg(db_));
+    char* errMsg = nullptr;
+    sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, &errMsg);
+
+    auto updateFunc = [&](int id, int rating) {
+        const char* sql = "UPDATE users SET rating = ? WHERE id = ?";
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+        
+        sqlite3_bind_int(stmt, 1, rating);
+        sqlite3_bind_int(stmt, 2, id);
+        bool success = (sqlite3_step(stmt) == SQLITE_DONE) && (sqlite3_changes(db_) > 0);
+        sqlite3_finalize(stmt);
+        return success;
+    };
+
+    if (updateFunc(first_player_id, first_new_rating) && updateFunc(second_player_id, second_new_rating)) {
+        sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, &errMsg);
+        return true;
+    } else {
+        sqlite3_exec(db_, "ROLLBACK;", nullptr, nullptr, &errMsg);
+        Logger::log("Database transaction failed and rolled back");
         return false;
     }
-    
-    sqlite3_bind_int(stmt, 1, new_rating);
-    sqlite3_bind_int(stmt, 2, player_id);
-    
-    bool success = (sqlite3_step(stmt) == SQLITE_DONE);
-    
-    if (!success) {
-        Logger::log("Error updating rating for player ", player_id, ": ", sqlite3_errmsg(db_));
-    }
-
-    sqlite3_finalize(stmt);
-    return success;
 }
 
 std::shared_ptr<Player> DatabaseManager::createUser(const std::string& login, const std::string& password_hash) {
@@ -93,6 +97,11 @@ std::shared_ptr<Player> DatabaseManager::createUser(const std::string& login, co
 
     if (!db_) {
         Logger::log("DB not open in createUser");
+        return nullptr;
+    }
+
+    if (login.empty() || password_hash.empty()) {
+        Logger::log("createUser failed: empty login or password");
         return nullptr;
     }
     

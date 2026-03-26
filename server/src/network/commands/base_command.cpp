@@ -7,8 +7,8 @@ std::shared_ptr<BaseCommand> BaseCommand::setNext(std::shared_ptr<BaseCommand> n
     return next_;
 }
 
-void BaseCommand::handle(const std::vector<std::string>& args, int player_id) {
+void BaseCommand::handle(const std::vector<std::string>& args, CommandContext context) {
     if (next_) {
-        next_->handle(args, player_id);
+        next_->handle(args, context);
     }
 }

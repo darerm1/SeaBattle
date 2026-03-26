@@ -9,7 +9,7 @@ public:
 
     std::shared_ptr<BaseCommand> setNext(std::shared_ptr<BaseCommand> next);
 
-    void handle(const std::vector<std::string>& args, int player_id) override;
+    void handle(const std::vector<std::string>& args, CommandContext context) override;
 
 protected:
     std::shared_ptr<BaseCommand> next_;

@@ -14,7 +14,7 @@ public:
 
     std::shared_ptr<Player> authenticate(const std::string& login, const std::string& password);
     
-    bool updateRating(int player_id, int new_rating);
+    bool updateRatings(int first_player_id, int first_new_rating, int second_player_id, int second_new_rating);
 
     std::shared_ptr<Player> createUser(const std::string& login, const std::string& password_hash);
     

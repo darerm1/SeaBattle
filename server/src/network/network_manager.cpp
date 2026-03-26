@@ -1,11 +1,12 @@
 #include "network/network_manager.hpp"
 #include "logger/logger.hpp"
 
-NetworkManager::NetworkManager(boost::asio::io_context& io_context, int port, SessionManager& sm, AuthManager& am)
+NetworkManager::NetworkManager(boost::asio::io_context& io_context, int port, SessionManager& sm, AuthManager& am, std::shared_ptr<BaseCommand> chain)
                             : context_(io_context), 
                             acceptor_(context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)),
                             session_manager_(sm),
-                            auth_manager_(am) {}
+                            auth_manager_(am),
+                            command_chain_(chain) {}
 
 NetworkManager::~NetworkManager() = default;
 
@@ -17,12 +18,12 @@ void NetworkManager::start_accept() {
                 start_accept();
                 return;
             }
-            int connection_id;
-            if (connections_.empty()) connection_id = 0;
-            else connection_id = connections_[connections_.size()-1]->get_connection_id() + 1;
-            
-            auto connection = std::make_shared<Connection>(connection_id, std::move(socket), session_manager_, *this);
-            connections_[connection_id] = connection;
+            int connection_id = next_connection_id_.fetch_add(1);
+            auto connection = std::make_shared<Connection>(connection_id, std::move(socket), session_manager_, *this, auth_manager_, command_chain_);
+            {
+            std::lock_guard<std::mutex> lock(connections_mutex_);
+                connections_[connection_id] = connection;
+            }
             connection->start();
         
             start_accept();
