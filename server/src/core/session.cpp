@@ -143,25 +143,37 @@ bool Session::set_player_ready(int player_id) {
     return true;
 }
 
+std::pair<int, int> Session::calculate_ratings() const {
+    int p1_old = first_player_->get_points();
+    int p2_old = second_player_->get_points();
+    
+    int diff = std::max(10, std::abs(p1_old - p2_old) * 10 / 100);
+
+    if (winner_id_ == first_player_->get_id()) {
+        return { p1_old + diff, std::max(0, p2_old - diff) };
+    } else {
+        return { std::max(0, p1_old - diff), p2_old + diff };
+    }
+}
+
+void Session::apply_new_ratings(int first_rating_new, int second_rating_new) {
+    first_player_->set_points(first_rating_new);
+    second_player_->set_points(second_rating_new);
+}
+
 void Session::end_game() {
     std::lock_guard<std::mutex> lock(session_mutex_);
     if (game_status_ != GameStatus::FINISHED) {
         Logger::log("Session ", game_id_, ": end_game called but game not finished");
         return;
     }
-    int first_points = first_player_->get_points();
-    int second_points = second_player_->get_points();
-    int diff = std::abs(first_points - second_points) * 10 / 100;
-    if (winner_id_ == first_player_->get_id()) {
-        first_player_->set_points(first_points + diff);
-        second_player_->set_points(std::max(second_points - diff, 0));
-    } else {
-        first_player_->set_points(std::max(first_points - diff, 0));
-        second_player_->set_points(second_points + diff);
-    }
-    Logger::log("Session ", game_id_, ": player ", first_player_->get_id(), 
+
+    auto [r1, r2] = calculate_ratings();
+    apply_new_ratings(r1, r2);
+
+    Logger::log("Session ", game_id_, ": player ", first_player_->get_id(),
                 " new rating: ", first_player_->get_points());
-    Logger::log("Session ", game_id_, ": player ", second_player_->get_id(), 
+    Logger::log("Session ", game_id_, ": player ", second_player_->get_id(),
                 " new rating: ", second_player_->get_points());
 }
 

@@ -24,6 +24,10 @@ public:
 
     bool set_player_ready(int player_id);
 
+    std::pair<int, int> calculate_ratings() const;
+
+    void apply_new_ratings(int first_rating_new, int second_rating_new);
+
     void end_game();
 
     std::pair<int, int> get_player_ids() const;
