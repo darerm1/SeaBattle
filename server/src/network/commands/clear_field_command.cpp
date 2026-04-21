@@ -12,23 +12,23 @@ void ClearFieldCommand::handle(const std::vector<std::string>& args, CommandCont
     }
 
     if (!context.current_player) {
-        context.send_response("ERROR: Not authorized");
+        context.send_response("ERROR: Not authorized\n");
         Logger::log("ClearField failed: anauthorized");
         return;
     }
     int game_id = session_manager_.get_player_game(context.current_player->get_id());
     if (game_id == -1) {
-        context.send_response("ERROR: game did not start");
+        context.send_response("ERROR: game did not start\n");
         Logger::log("ClearField failed: game did not start");
         return;
     }
     
     session_manager_.clear_field_async(context.current_player->get_id(), game_id, [context](bool success) {
         if (success) {
-            context.send_response("FIELD_CLEARED");
+            context.send_response("Field cleared\n");
             Logger::log("ClearFieldCommand: Field cleared for player ", context.current_player->get_id());
         } else {
-            context.send_response("ERROR: Could not clear field");
+            context.send_response("ERROR: Could not clear field\n");
             Logger::log("ClearFieldCommand: Failed to clear field for player ", context.current_player->get_id());
         }
     });

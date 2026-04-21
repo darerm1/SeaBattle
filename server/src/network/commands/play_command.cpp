@@ -12,12 +12,12 @@ void PlayCommand::handle(const std::vector<std::string>& args, CommandContext co
     }
 
     if (!context.current_player) {
-        context.send_response("ERROR: Not authorized");
+        context.send_response("ERROR: Not authorized\n");
         Logger::log("PlayCommand failed: player anauthorized");
         return;
     }
     
     session_manager_.add_to_queue_async(context.current_player);
-    context.send_response("Searching opponent...");
+    context.send_response("Searching opponent...\n");
     Logger::log("Player ", context.current_player->get_id(), " joined the queue");
 }

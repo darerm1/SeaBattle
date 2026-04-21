@@ -12,14 +12,14 @@ void MoveCommand::handle(const std::vector<std::string>& args, CommandContext co
     }
 
     if (args.size() < 3) {
-        context.send_response("Missing login or password, try again");
+        context.send_response("Missing login or password, try again\n");
         Logger::log("MoveCommand: missing coordinates");
         return;
     }
 
     if (!std::all_of(args[1].begin(), args[1].end(), ::isdigit) ||
         !std::all_of(args[2].begin(), args[2].end(), ::isdigit)) {
-        context.send_response("Coordinats are not digits, try again");
+        context.send_response("Coordinats are not digits, try again\n");
         Logger::log("MoveCommand: arguments are not digits");
         return;
     }
@@ -28,19 +28,19 @@ void MoveCommand::handle(const std::vector<std::string>& args, CommandContext co
     int y = std::stoi(args[2]);
 
     if (!context.current_player) {
-        context.send_response("ERROR: Not authorized");
+        context.send_response("ERROR: Not authorized\n");
         Logger::log("MoveCommand failed: anauthorized");
         return;
     }
     int game_id = session_manager_.get_player_game(context.current_player->get_id());
     if (game_id == -1) {
-        context.send_response("ERROR: game did not start");
+        context.send_response("ERROR: game did not start\n");
         Logger::log("MoveCommand failed: game did not start");
         return;
     }
 
     session_manager_.make_move_async(context.current_player->get_id(), game_id, x, y, [context, x, y](ShotResult result) {
-        context.send_response("Move result: " + std::to_string(static_cast<int>(result)));
+        context.send_response("Move result: " + std::to_string(static_cast<int>(result)) + "\n");
         Logger::log("Player ", context.current_player->get_id(), " moved to (", x, ", ", y, "). Shot result: ", shot_result_to_string(result));
     });
 }

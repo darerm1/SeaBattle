@@ -12,7 +12,7 @@ void SignUpCommand::handle(const std::vector<std::string>& args, CommandContext 
     }
 
     if (args.size() < 3) {
-        context.send_response("Missing login or password, try again");
+        context.send_response("Missing login or password, try again\n");
         Logger::log("LoginCommand: missing login or password");
         return;
     }
@@ -20,11 +20,11 @@ void SignUpCommand::handle(const std::vector<std::string>& args, CommandContext 
     auth_manager_.register_user_async(args[1], args[2], [context](std::shared_ptr<Player> player) {
         if (player) {
             context.on_login_success(player);
-            context.send_response("New user registered");
+            context.send_response("New user registered\n");
             Logger::log("Player ", player->get_id(), " successfully created and logged in");
         } else {
             Logger::log("Registration failed");
-            context.send_response("Reqistration failed");
+            context.send_response("Reqistration failed\n");
         }
     });
 }
