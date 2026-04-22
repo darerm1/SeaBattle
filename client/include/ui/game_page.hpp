@@ -37,14 +37,10 @@ private:
     QLabel* ownFieldLabel_;
     QLabel* enemyFieldLabel_;
     QLabel* turnLabel_;
-    QLabel* ownShipsLabel_;
-    QLabel* enemyShipsLabel_;
     QPushButton* exitButton_;
 
     int lastMoveX_ = -1;
     int lastMoveY_ = -1;
     bool myTurn_ = true;
     bool gameOver_ = false;
-    int ownShipsRemaining_ = 10;
-    int enemyShipsRemaining_ = 10;
 };

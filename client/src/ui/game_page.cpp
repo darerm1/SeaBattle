@@ -47,8 +47,6 @@ void GamePage::setupUI() {
     turnLabel_ = new QLabel("Ваш ход", this);
     turnLabel_->setStyleSheet("font-weight: bold; font-size: 14px;");
     turnLabel_->setAlignment(Qt::AlignCenter);
-    ownShipsLabel_ = new QLabel("Ваши корабли: 10", this);
-    enemyShipsLabel_ = new QLabel("Корабли врага: 10", this);
     exitButton_ = new QPushButton("Выйти", this);
 
     connect(exitButton_, &QPushButton::clicked, [this]() {
@@ -61,8 +59,6 @@ void GamePage::setupUI() {
 
     infoLayout->addWidget(turnLabel_);
     infoLayout->addSpacing(20);
-    infoLayout->addWidget(ownShipsLabel_);
-    infoLayout->addWidget(enemyShipsLabel_);
     infoLayout->addStretch();
     infoLayout->addWidget(exitButton_);
 
@@ -81,10 +77,6 @@ void GamePage::initField(const QVector<QVector<int>>& field) {
     turnLabel_->setText("Ожидание начала хода...");
     ownFieldLabel_->setText("Ваше поле");
     enemyFieldLabel_->setText("Поле противника");
-    ownShipsRemaining_ = 10;
-    enemyShipsRemaining_ = 10;
-    ownShipsLabel_->setText("Ваши корабли: 10");
-    enemyShipsLabel_->setText("Корабли соперника: 10");
 
     for (int y = 0; y < field.size(); ++y) {
         for (int x = 0; x < field[y].size(); ++x) {
@@ -104,8 +96,6 @@ void GamePage::onMoveResult(int result, int x, int y) {
         turnLabel_->setText("Попадание! Ваш ход");
     } else if (result == 2) {
         if (cx >= 0) enemyFieldWidget_->setCellState(cx, cy, CellState::HIT);
-        enemyShipsRemaining_ = std::max(0, enemyShipsRemaining_ - 1);
-        enemyShipsLabel_->setText(QString("Корабли соперника: %1").arg(enemyShipsRemaining_));
         myTurn_ = true;
         turnLabel_->setText("Корабль потоплен! Ваш ход");
     } else if (result == 1) {
@@ -126,8 +116,6 @@ void GamePage::onOpponentMove(int x, int y, int result) {
         turnLabel_->setText("Противник попал! Ход противника");
     } else if (result == 2) {
         ownFieldWidget_->setCellState(x, y, CellState::HIT);
-        ownShipsRemaining_ = std::max(0, ownShipsRemaining_ - 1);
-        ownShipsLabel_->setText(QString("Ваши корабли: %1").arg(ownShipsRemaining_));
         myTurn_ = false;
         turnLabel_->setText("Противник потопил корабль! Ход противника");
     } else if (result == 1) {

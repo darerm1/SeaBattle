@@ -30,8 +30,6 @@ private slots:
         page.initField(field);
         QVERIFY(!page.myTurn_);
         QVERIFY(!page.gameOver_);
-        QCOMPARE(page.ownShipsRemaining_, 10);
-        QCOMPARE(page.enemyShipsRemaining_, 10);
     }
     void testYourTurnSetsTurn() {
         MockNetwork mock;
@@ -69,7 +67,6 @@ private slots:
         emit mock.moveResult(2, 1, 1);
         QCOMPARE(page.enemyFieldWidget_->getCellState(1, 1), CellState::HIT);
         QVERIFY(page.myTurn_);
-        QCOMPARE(page.enemyShipsRemaining_, 9);
     }
     void testMoveResultGameOver() {
         MockNetwork mock;
@@ -105,7 +102,6 @@ private slots:
         page.initField(field);
         emit mock.opponentMove(4, 4, 2);
         QCOMPARE(page.ownFieldWidget_->getCellState(4, 4), CellState::HIT);
-        QCOMPARE(page.ownShipsRemaining_, 9);
         QVERIFY(!page.myTurn_);
     }
     void testOpponentMoveGameOver() {
