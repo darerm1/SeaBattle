@@ -23,7 +23,7 @@ void LoginCommand::handle(const std::vector<std::string>& args, CommandContext c
     auth_manager_.authenticate_async(login, password, [context](std::shared_ptr<Player> player) {
         if (player) {
             context.on_login_success(player);
-            context.send_response("Logging successful\n");
+            context.send_response("Logging successful\nRating: " + std::to_string(player->get_points()) + "\n");
             Logger::log("Player ", player->get_id(), " logged in");
         } else {
             context.send_response("Login failed. Invalid details\n");

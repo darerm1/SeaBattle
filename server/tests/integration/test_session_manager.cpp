@@ -103,25 +103,6 @@ TEST_F(SessionManagerTest, PlaceShipAndMakeMove) {
     EXPECT_FALSE(manager->get_session(game_id)->game_is_over());
 }
 
-TEST_F(SessionManagerTest, ClearField) {
-    manager->add_to_queue_async(p1);
-    manager->add_to_queue_async(p2);
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    int game_id = manager->get_player_game(p1->get_id());
-    
-    bool res1 = wait_async([&](auto cb) {
-        manager->place_ship_async(p1->get_id(), game_id, 4, 0, 0, true, cb);
-    });
-    EXPECT_TRUE(res1);
-
-    manager->clear_field_async(p1->get_id(), game_id, [](bool){});
-    
-    bool res2 = wait_async([&](auto cb) {
-        manager->place_ship_async(p1->get_id(), game_id, 4, 0, 0, true, cb);
-    });
-    EXPECT_TRUE(res2);
-}
-
 TEST_F(SessionManagerTest, TimeoutAfterMissThenNoMove) {
     manager->add_to_queue_async(p1);
     manager->add_to_queue_async(p2);

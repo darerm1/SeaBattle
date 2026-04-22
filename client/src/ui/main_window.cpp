@@ -25,18 +25,27 @@ void MainWindow::setupUI() {
     
     connect(loginPage_, &LoginPage::playButtonClicked, this, &MainWindow::switchToFieldSettingPage);
     connect(fieldSettingPage_, &FieldSettingPage::gameStarted, this, &MainWindow::switchToGamePage);
+    connect(fieldSettingPage_, &FieldSettingPage::exitRequested, this, &MainWindow::switchToLoginPage);
+    connect(gamePage_, &GamePage::exitRequested, this, &MainWindow::switchToLoginPage);
     
     switchToLoginPage();
 }
 
 void MainWindow::switchToLoginPage() {
+    QWidget* current = stackedWidget_->currentWidget();
+    if (current == gamePage_ || current == fieldSettingPage_) {
+        loginPage_->onReturnFromGame();
+    }
     stackedWidget_->setCurrentWidget(loginPage_);
 }
 
 void MainWindow::switchToFieldSettingPage() {
+    fieldSettingPage_->resetPage();
     stackedWidget_->setCurrentWidget(fieldSettingPage_);
 }
 
 void MainWindow::switchToGamePage() {
+    gamePage_->initField(fieldSettingPage_->getField());
+    fieldSettingPage_->resetPage();
     stackedWidget_->setCurrentWidget(gamePage_);
 }

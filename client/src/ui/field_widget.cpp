@@ -2,10 +2,7 @@
 #include <QPainter>
 #include <QMouseEvent>
 
-FieldWidget::FieldWidget(QWidget* parent)
-    : QWidget(parent)
-    , cells_(GRID_SIZE, QVector<CellState>(GRID_SIZE, CellState::EMPTY))
-{
+FieldWidget::FieldWidget(QWidget* parent) : QWidget(parent), cells_(GRID_SIZE, QVector<CellState>(GRID_SIZE, CellState::EMPTY)) {
     setFixedSize(GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE);
     setMouseTracking(true);
 }

@@ -24,6 +24,6 @@ void ReadyCommand::handle(const std::vector<std::string>& args, CommandContext c
         return;
     }
     session_manager_.set_player_ready(player_id, game_id);
-    context.send_response("Game is starting, wait...\n");
+    context.send_response("Waiting for opponent...\n");
     Logger::log("Player ", player_id, " is ready in game ", game_id);
 }

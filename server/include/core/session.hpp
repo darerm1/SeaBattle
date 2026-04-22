@@ -22,6 +22,10 @@ public:
 
     bool check_timeout();
 
+    void forfeit(int forfeiting_player_id);
+
+    int get_turn_player_id() const;
+
     bool set_player_ready(int player_id);
 
     std::pair<int, int> calculate_ratings() const;
@@ -48,7 +52,13 @@ public:
 
     const std::string& get_second_login() const;
 
+    int get_first_rating() const;
+
+    int get_second_rating() const;
+
     bool game_is_started() const;
+
+    bool game_is_setup() const;
 
 private:
     GameField& get_player_field(int player_id);

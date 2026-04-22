@@ -2,9 +2,9 @@
 
 #include <QWidget>
 #include <QLineEdit>
+#include <QLabel>
 #include <QPushButton>
 #include <QTextEdit>
-#include <QPushButton>
 #include "network/client_network.hpp"
 
 class LoginPage : public QWidget {
@@ -14,10 +14,13 @@ public:
     LoginPage(ClientNetwork* network, QWidget* parent = nullptr);
     ~LoginPage();
 
+    void onReturnFromGame();
+    void onRatingUpdated(int rating);
+
 signals:
     void loginSuccessful();
     void playButtonClicked();
-    
+
 public slots:
     void onConnectClicked();
     void onLoginClicked();
@@ -27,6 +30,8 @@ public slots:
     void onSignupResult(bool success, const QString& message);
     void onError(const QString& error);
     void onPlayClicked();
+    void onSearchingOpponent();
+    void onOpponentFound();
 
 private:
     void appendLog(const QString& message);
@@ -42,4 +47,5 @@ private:
     QPushButton* signupButton_;
     QTextEdit* logWidget_;
     QPushButton* playButton_;
+    QLabel* ratingLabel_;
 };

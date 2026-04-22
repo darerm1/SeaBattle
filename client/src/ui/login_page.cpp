@@ -1,6 +1,7 @@
 #include "ui/login_page.hpp"
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QFont>
 
 LoginPage::LoginPage(ClientNetwork* network, QWidget* parent) : QWidget(parent), network_(network) {
     setupUI();
@@ -8,6 +9,9 @@ LoginPage::LoginPage(ClientNetwork* network, QWidget* parent) : QWidget(parent),
     connect(network_, &ClientNetwork::errorOccurred, this, &LoginPage::onError);
     connect(network_, &ClientNetwork::loginResult, this, &LoginPage::onLoginResult);
     connect(network_, &ClientNetwork::signupResult, this, &LoginPage::onSignupResult);
+    connect(network_, &ClientNetwork::searchingOpponent, this, &LoginPage::onSearchingOpponent);
+    connect(network_, &ClientNetwork::opponentFound, this, &LoginPage::onOpponentFound);
+    connect(network_, &ClientNetwork::ratingUpdated, this, &LoginPage::onRatingUpdated);
 }
 
 LoginPage::~LoginPage() = default;
@@ -87,7 +91,7 @@ void LoginPage::onLoginResult(bool success, const QString& message) {
         loginButton_->setEnabled(false);
         signupButton_->setEnabled(false);
     } else {
-        appendLog("Login failed: " + message);
+        appendLog("Неверный логин или пароль, попробуйте авторизоваться снова");
     }
 }
 
@@ -103,6 +107,17 @@ void LoginPage::onSignupResult(bool success, const QString& message) {
 }
 
 void LoginPage::onPlayClicked() {
+    network_->sendCommand("play");
+    playButton_->setEnabled(false);
+    appendLog("Поиск соперника...");
+}
+
+void LoginPage::onSearchingOpponent() {
+    appendLog("Ожидание соперника...");
+}
+
+void LoginPage::onOpponentFound() {
+    appendLog("Соперник найден! Расставьте корабли.");
     emit playButtonClicked();
 }
 
@@ -157,14 +172,20 @@ void LoginPage::setupUI() {
     authLayout->addWidget(loginButton_);
     authLayout->addWidget(signupButton_);
     
+    ratingLabel_ = new QLabel(this);
+    ratingLabel_->setAlignment(Qt::AlignCenter);
+    ratingLabel_->setStyleSheet("font-size: 16px; font-weight: bold; color: #333;");
+    ratingLabel_->hide();
+
     QHBoxLayout* playLayout = new QHBoxLayout();
     playLayout->addStretch();
     playLayout->addWidget(playButton_);
     playLayout->addStretch();
-    
+
     mainLayout->addLayout(connLayout);
     mainLayout->addLayout(authLayout);
     mainLayout->addWidget(logWidget_);
+    mainLayout->addWidget(ratingLabel_);
     mainLayout->addLayout(playLayout);
     
     setLayout(mainLayout);
@@ -172,4 +193,14 @@ void LoginPage::setupUI() {
 
 void LoginPage::appendLog(const QString& message) {
     logWidget_->append(message);
+}
+
+void LoginPage::onReturnFromGame() {
+    playButton_->setEnabled(true);
+    appendLog("Игра завершена. Вы можете начать новую игру.");
+}
+
+void LoginPage::onRatingUpdated(int rating) {
+    ratingLabel_->setText(QString("Рейтинг: %1").arg(rating));
+    ratingLabel_->show();
 }

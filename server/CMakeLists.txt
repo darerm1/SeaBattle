@@ -30,6 +30,7 @@ set(COMMAND_SOURCES
     src/network/commands/sign_up_command.cpp
     src/network/commands/disconnect_command.cpp
     src/network/commands/clear_field_command.cpp
+    src/network/commands/forfeit_command.cpp
     src/network/commands/move_command.cpp
     src/network/commands/place_ship_command.cpp
     src/network/commands/play_command.cpp
@@ -55,7 +56,7 @@ target_link_libraries(seabattle_server_lib PUBLIC
     ${SQLITE3_LIBRARY}
 )
 
-add_executable(run_server main.cpp)
+add_executable(run_server src/main.cpp)
 
 target_link_libraries(run_server PRIVATE seabattle_server_lib)
 

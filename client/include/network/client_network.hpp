@@ -17,7 +17,7 @@ public:
     void connectToServer(const QString& host, quint16 port);
     void disconnectFromServer();
 
-    void sendCommand(const QString& command);
+    virtual void sendCommand(const QString& command);
 
     bool isConnected() const { return socket_->state() == QTcpSocket::ConnectedState; }
 
@@ -28,12 +28,21 @@ signals:
     void loginResult(bool success, const QString& message);
     void signupResult(bool success, const QString& message);
     void shipPlaced(bool success, const QString& message);
-    void moveResult(int result, int x, int y);  // result: 0=HIT, 1=MISS, 3=GAME_OVER
+    void moveResult(int result, int x, int y);
+    void opponentFound();
     void gameStarted();
-    void opponentMove(int x, int y);
+    void yourTurn();
+    void gameForfeited();
+    void gameInfo(QString ownLogin, int ownRating, QString oppLogin, int oppRating);
+    void opponentMove(int x, int y, int result);
     void gameOver(int winnerId);
     void fieldCleared();
     void searchingOpponent();
+    void ratingUpdated(int rating);
+    void opponentLeft();
+
+protected:
+    void parseResponse(const QString& response);
 
 private slots:
     void onConnected();
@@ -42,7 +51,6 @@ private slots:
     void onError(QAbstractSocket::SocketError error);
 
 private:
-    void parseResponse(const QString& response);
     
     std::unique_ptr<QTcpSocket> socket_;
     QByteArray buffer_;

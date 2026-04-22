@@ -38,3 +38,30 @@ void NetworkManager::remove_connection(int connection_id) {
     std::lock_guard<std::mutex> lock(connections_mutex_);
     connections_.erase(connection_id);
 }
+
+void NetworkManager::send_to_player(int player_id, const std::string& message) {
+    Logger::log("send_to_player: called for player ", player_id);
+    std::shared_ptr<Connection> target;
+    {
+        std::lock_guard<std::mutex> lock(connections_mutex_);
+        Logger::log("send_to_player: searching for player ", player_id, " among ", connections_.size(), " connections");
+        for (auto& [id, conn] : connections_) {
+            auto player = conn->get_player();
+            Logger::log("  connection ", id, " -> player ", (player ? std::to_string(player->get_id()) : "none"));
+            if (player && player->get_id() == player_id) {
+                Logger::log("send_to_player: found connection for player ", player_id);
+                target = conn;
+                break;
+            }
+        }
+    }
+    if (target) {
+        Logger::log("send_to_player: posting message to player ", player_id);
+        auto msg = std::make_shared<std::string>(message);
+        boost::asio::post(context_, [target, msg]() {
+            target->send(*msg);
+        });
+    } else {
+        Logger::log("send_to_player: player ", player_id, " NOT FOUND");
+    }
+}

@@ -5,18 +5,15 @@
 #include <QHBoxLayout>
 #include <QLabel>
 
-FieldSettingPage::FieldSettingPage(ClientNetwork* network, QWidget* parent)
-    : QWidget(parent)
-    , network_(network)
-    , selectedShipType_(-1)
-    , horizontal_(true)
-{
+FieldSettingPage::FieldSettingPage(ClientNetwork* network, QWidget* parent) : QWidget(parent), network_(network), selectedShipType_(-1), horizontal_(true) {
     field_ = QVector<QVector<int>>(10, QVector<int>(10, 0));
     placedShips_ = QVector<int>(4, 0);
     setupUI();
-    
+
+    connect(network_, &ClientNetwork::shipPlaced, this, &FieldSettingPage::onShipPlaced);
     connect(network_, &ClientNetwork::gameStarted, this, &FieldSettingPage::onGameStarted);
     connect(network_, &ClientNetwork::fieldCleared, this, &FieldSettingPage::onFieldCleared);
+    connect(network_, &ClientNetwork::opponentLeft, this, &FieldSettingPage::onOpponentLeft);
 }
 
 void FieldSettingPage::setupUI() {
@@ -30,10 +27,10 @@ void FieldSettingPage::setupUI() {
     QHBoxLayout* shipPanelLayout = new QHBoxLayout();
     shipPanelLayout->addWidget(new QLabel("Выберите корабль:", this));
     
-    shipButtons_.append(new QPushButton("4-клеточный", this));
-    shipButtons_.append(new QPushButton("3-клеточный", this));
-    shipButtons_.append(new QPushButton("2-клеточный", this));
-    shipButtons_.append(new QPushButton("1-клеточный", this));
+    shipButtons_.append(new QPushButton("4-палубный", this));
+    shipButtons_.append(new QPushButton("3-палубный", this));
+    shipButtons_.append(new QPushButton("2-палубный", this));
+    shipButtons_.append(new QPushButton("1-палубный", this));
     
     for (int i = 0; i < shipButtons_.size(); ++i) {
         shipPanelLayout->addWidget(shipButtons_[i]);
@@ -61,23 +58,32 @@ void FieldSettingPage::setupUI() {
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     readyButton_ = new QPushButton("Готов", this);
     clearButton_ = new QPushButton("Очистить поле", this);
-    
+    exitButton_ = new QPushButton("Выйти в меню", this);
+
     connect(clearButton_, &QPushButton::clicked, this, &FieldSettingPage::onClearFieldClicked);
     connect(readyButton_, &QPushButton::clicked, this, &FieldSettingPage::onReadyClicked);
-    
+    connect(exitButton_, &QPushButton::clicked, this, &FieldSettingPage::exitRequested);
+
     buttonLayout->addStretch();
     buttonLayout->addWidget(clearButton_);
     buttonLayout->addWidget(readyButton_);
     buttonLayout->addStretch();
     mainLayout->addLayout(buttonLayout);
-    
+
+    exitButton_->hide();
+    mainLayout->addWidget(exitButton_, 0, Qt::AlignCenter);
+
     readyButton_->setEnabled(false);
     updateFieldDisplay();
 }
 
 void FieldSettingPage::selectShip(int type) {
     selectedShipType_ = type;
-    statusLabel_->setText(QString("Выбран корабль: %1-клеточный").arg(4 - type));
+    statusLabel_->setText(QString("Выбран корабль: %1-палубный").arg(4 - type));
+    if (!shipButtons_[type]->isEnabled()) {
+        statusLabel_->setText("Лимит кораблей этого типа исчерпан");
+        return;
+    }
 }
 
 void FieldSettingPage::rotateShip() {
@@ -96,6 +102,7 @@ void FieldSettingPage::onCellClicked(int x, int y) {
         selectedShipType_ = -1;
         updateFieldDisplay();
         checkReady();
+        updateShipButtonsState();
         statusLabel_->setText("Корабль размещён");
         fieldWidget_->clearPreview();
     } else {
@@ -152,6 +159,7 @@ void FieldSettingPage::placeShipAt(int row, int col, int length, bool horizontal
         int r = row + i * dr;
         int c = col + i * dc;
         field_[r][c] = 1;
+        lastPlacedShip_ = {length, col, row, horizontal};
     }
     updateFieldDisplay();
 }
@@ -169,6 +177,7 @@ void FieldSettingPage::clearLocalField() {
     for (int y = 0; y < 10; ++y)
         for (int x = 0; x < 10; ++x)
             field_[y][x] = 0;
+    lastPlacedShip_.length = 0;
     placedShips_ = QVector<int>(4, 0);
     selectedShipType_ = -1;
     updateFieldDisplay();
@@ -202,8 +211,63 @@ void FieldSettingPage::onClearFieldClicked() {
     checkReady();
 }
 
+void FieldSettingPage::resetPage() {
+    clearLocalField();
+    checkReady();
+    updateShipButtonsState();
+    clearButton_->setEnabled(true);
+    exitButton_->hide();
+    statusLabel_->setStyleSheet("color: blue;");
+    statusLabel_->setText("Расставьте корабли и нажмите 'Готов'");
+}
+
 void FieldSettingPage::onFieldCleared() {
     statusLabel_->setText("Поле очищено. Расставьте корабли заново.");
     clearButton_->setEnabled(true);
     readyButton_->setEnabled(false);
+    updateShipButtonsState();
+}
+
+void FieldSettingPage::updateShipButtonsState() {
+    const int maxShips[] = {1, 2, 3, 4};
+    for (int i = 0; i < shipButtons_.size(); ++i) {
+        shipButtons_[i]->setEnabled(placedShips_[i] < maxShips[i]);
+    }
+}
+
+void FieldSettingPage::onOpponentLeft() {
+    statusLabel_->setStyleSheet("color: red; font-weight: bold;");
+    statusLabel_->setText("Соперник вышел из игры. Игра прервана.");
+    readyButton_->setEnabled(false);
+    clearButton_->setEnabled(false);
+    for (auto* btn : shipButtons_) btn->setEnabled(false);
+    exitButton_->show();
+}
+
+void FieldSettingPage::onShipPlaced(bool success, const QString& message) {
+    if (!success) {
+        if (lastPlacedShip_.length > 0) {
+            int length = lastPlacedShip_.length;
+            int x = lastPlacedShip_.x;
+            int y = lastPlacedShip_.y;
+            bool horizontal = lastPlacedShip_.horizontal;
+            int dr = horizontal ? 0 : 1;
+            int dc = horizontal ? 1 : 0;
+            for (int i = 0; i < length; ++i) {
+                int r = y + i * dr;
+                int c = x + i * dc;
+                field_[r][c] = 0;
+            }
+            int type = 4 - length;
+            placedShips_[type]--;
+            updateFieldDisplay();
+            checkReady();
+            updateShipButtonsState();
+            statusLabel_->setText("Ошибка: " + message);
+        }
+        lastPlacedShip_.length = 0;
+    } else {
+        statusLabel_->setText("Корабль размещён");
+        updateShipButtonsState();
+    }
 }

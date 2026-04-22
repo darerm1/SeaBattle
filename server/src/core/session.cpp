@@ -117,6 +117,8 @@ bool Session::check_timeout() {
 
 bool Session::set_player_ready(int player_id) {
     std::lock_guard<std::mutex> lock(session_mutex_);
+    bool was_both_ready = first_ready_ && second_ready_;
+
     if (first_player_->get_id() == player_id && !first_ready_) {
         if (!first_field_.is_ready()) {
             Logger::log("Session ", game_id_, ": player ", player_id, " tried to set ready but field is not ready");
@@ -135,18 +137,18 @@ bool Session::set_player_ready(int player_id) {
         Logger::log("Session ", game_id_, ": player ", player_id, " is ready");
     }
 
-    if (first_ready_ && second_ready_) {
+    if (first_ready_ && second_ready_ && !was_both_ready) {
         game_status_ = GameStatus::IN_PROGRESS;
         Logger::log("Session ", game_id_, ": both players ready. Game started! First turn: player ", turn_);
         turn_start_time_ = std::chrono::steady_clock::now();
+        return true;
     }
-    return true;
+    return false;
 }
 
 std::pair<int, int> Session::calculate_ratings() const {
     int p1_old = first_player_->get_points();
     int p2_old = second_player_->get_points();
-    
     int diff = std::max(10, std::abs(p1_old - p2_old) * 10 / 100);
 
     if (winner_id_ == first_player_->get_id()) {
@@ -219,14 +221,40 @@ const GameField& Session::get_second_field() const {
     return second_field_; 
 }
 
-const std::string& Session::get_first_login() const { 
-    return first_player_->get_login(); 
+const std::string& Session::get_first_login() const {
+    return first_player_->get_login();
 }
 
-const std::string& Session::get_second_login() const { 
-    return second_player_->get_login(); 
+const std::string& Session::get_second_login() const {
+    return second_player_->get_login();
+}
+
+int Session::get_first_rating() const {
+    return first_player_->get_points();
+}
+
+int Session::get_second_rating() const {
+    return second_player_->get_points();
 }
 
 bool Session::game_is_started() const {
     return game_status_ == GameStatus::IN_PROGRESS;
+}
+
+bool Session::game_is_setup() const {
+    return game_status_ == GameStatus::SETUP;
+}
+
+void Session::forfeit(int forfeiting_player_id) {
+    std::lock_guard<std::mutex> lock(session_mutex_);
+    if (game_status_ == GameStatus::FINISHED) return;
+    winner_id_ = (forfeiting_player_id == first_player_->get_id())
+        ? second_player_->get_id()
+        : first_player_->get_id();
+    game_status_ = GameStatus::FINISHED;
+    Logger::log("Session ", game_id_, ": player ", forfeiting_player_id, " forfeited. Winner: ", winner_id_);
+}
+
+int Session::get_turn_player_id() const {
+    return turn_;
 }

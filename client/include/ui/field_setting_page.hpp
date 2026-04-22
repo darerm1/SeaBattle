@@ -8,14 +8,26 @@
 class ClientNetwork;
 class FieldWidget;
 
+struct ShipPlacement {
+    int length = 0;
+    int x = 0;
+    int y = 0;
+    bool horizontal = false;
+};
+
 class FieldSettingPage : public QWidget {
     Q_OBJECT
 
 public:
     explicit FieldSettingPage(ClientNetwork* network, QWidget* parent = nullptr);
 
+    const QVector<QVector<int>>& getField() const { return field_; }
+
+    void resetPage();
+
 signals:
     void gameStarted();
+    void exitRequested();
 
 private slots:
     void onReadyClicked();
@@ -24,8 +36,12 @@ private slots:
     void onFieldCleared();
     void onCellClicked(int x, int y);
     void onCellHover(int x, int y);
+    void onShipPlaced(bool success, const QString& message);
+    void onOpponentLeft();
 
 private:
+    friend class TestFieldSettingPage;
+
     void setupUI();
     void selectShip(int type);
     void rotateShip();
@@ -35,11 +51,13 @@ private:
     void updateFieldDisplay();
     void checkReady();
     void clearLocalField();
+    void updateShipButtonsState();
 
     ClientNetwork* network_;
     FieldWidget* fieldWidget_;
     QPushButton* readyButton_;
     QPushButton* clearButton_;
+    QPushButton* exitButton_;
     QLabel* statusLabel_;
     
     QVector<QPushButton*> shipButtons_;
@@ -47,4 +65,5 @@ private:
     QVector<int> placedShips_;
     int selectedShipType_;
     bool horizontal_;
+    ShipPlacement lastPlacedShip_;
 };

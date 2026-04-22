@@ -6,60 +6,157 @@
 #include <QLabel>
 #include <QPushButton>
 
-GamePage::GamePage(ClientNetwork* network, QWidget* parent)
-    : QWidget(parent)
-    , network_(network)
-{
+GamePage::GamePage(ClientNetwork* network, QWidget* parent) : QWidget(parent), network_(network) {
     setupUI();
-    
+
     connect(network_, &ClientNetwork::moveResult, this, &GamePage::onMoveResult);
+    connect(network_, &ClientNetwork::opponentMove, this, &GamePage::onOpponentMove);
     connect(network_, &ClientNetwork::gameOver, this, &GamePage::onGameOver);
+    connect(network_, &ClientNetwork::yourTurn, this, &GamePage::onYourTurn);
+    connect(network_, &ClientNetwork::gameForfeited, this, &GamePage::exitRequested);
+    connect(network_, &ClientNetwork::gameInfo, this, &GamePage::onGameInfo);
 }
 
 void GamePage::setupUI() {
     QHBoxLayout* mainLayout = new QHBoxLayout(this);
-    
+
+    QVBoxLayout* ownLayout = new QVBoxLayout();
+    ownFieldLabel_ = new QLabel("Ваше поле", this);
+    ownFieldLabel_->setAlignment(Qt::AlignCenter);
     ownFieldWidget_ = new FieldWidget(this);
+    ownLayout->addWidget(ownFieldLabel_);
+    ownLayout->addWidget(ownFieldWidget_);
+
+    QVBoxLayout* enemyLayout = new QVBoxLayout();
+    enemyFieldLabel_ = new QLabel("Поле противника", this);
+    enemyFieldLabel_->setAlignment(Qt::AlignCenter);
     enemyFieldWidget_ = new FieldWidget(this);
-    
+    enemyLayout->addWidget(enemyFieldLabel_);
+    enemyLayout->addWidget(enemyFieldWidget_);
+
     connect(enemyFieldWidget_, &FieldWidget::cellClicked, [this](int x, int y) {
+        if (!myTurn_ || gameOver_) return;
+        lastMoveX_ = x;
+        lastMoveY_ = y;
+        myTurn_ = false;
+        turnLabel_->setText("Ход противника...");
         network_->sendCommand(QString("move %1 %2").arg(x).arg(y));
     });
-    
+
     QVBoxLayout* infoLayout = new QVBoxLayout();
     turnLabel_ = new QLabel("Ваш ход", this);
-    ownShipsLabel_ = new QLabel("Корабли: 10", this);
-    enemyShipsLabel_ = new QLabel("Корабли: 10", this);
+    turnLabel_->setStyleSheet("font-weight: bold; font-size: 14px;");
+    turnLabel_->setAlignment(Qt::AlignCenter);
+    ownShipsLabel_ = new QLabel("Ваши корабли: 10", this);
+    enemyShipsLabel_ = new QLabel("Корабли врага: 10", this);
     exitButton_ = new QPushButton("Выйти", this);
-    
+
     connect(exitButton_, &QPushButton::clicked, [this]() {
-        network_->sendCommand("disconnect");
+        if (gameOver_) {
+            emit exitRequested();
+        } else {
+            network_->sendCommand("forfeit");
+        }
     });
-    
+
     infoLayout->addWidget(turnLabel_);
+    infoLayout->addSpacing(20);
     infoLayout->addWidget(ownShipsLabel_);
     infoLayout->addWidget(enemyShipsLabel_);
-    infoLayout->addWidget(exitButton_);
     infoLayout->addStretch();
-    
-    mainLayout->addWidget(ownFieldWidget_);
-    mainLayout->addWidget(enemyFieldWidget_);
+    infoLayout->addWidget(exitButton_);
+
+    mainLayout->addLayout(ownLayout);
+    mainLayout->addLayout(enemyLayout);
     mainLayout->addLayout(infoLayout);
 }
 
-void GamePage::onMoveResult(int result, int x, int y) {
-    if (x >= 0 && y >= 0) {
-        if (result == 0) {
-            enemyFieldWidget_->setCellState(x, y, CellState::HIT);
-        } else if (result == 1) {
-            enemyFieldWidget_->setCellState(x, y, CellState::MISS);
+void GamePage::initField(const QVector<QVector<int>>& field) {
+    ownFieldWidget_->clearField();
+    enemyFieldWidget_->clearField();
+    myTurn_ = false;
+    gameOver_ = false;
+    lastMoveX_ = -1;
+    lastMoveY_ = -1;
+    turnLabel_->setText("Ожидание начала хода...");
+    ownFieldLabel_->setText("Ваше поле");
+    enemyFieldLabel_->setText("Поле противника");
+    ownShipsRemaining_ = 10;
+    enemyShipsRemaining_ = 10;
+    ownShipsLabel_->setText("Ваши корабли: 10");
+    enemyShipsLabel_->setText("Корабли соперника: 10");
+
+    for (int y = 0; y < field.size(); ++y) {
+        for (int x = 0; x < field[y].size(); ++x) {
+            if (field[y][x] == 1)
+                ownFieldWidget_->setCellState(x, y, CellState::SHIP);
         }
     }
-    if (result == 3) {
-        turnLabel_->setText("Игра окончена!");
+}
+
+void GamePage::onMoveResult(int result, int x, int y) {
+    int cx = (x >= 0) ? x : lastMoveX_;
+    int cy = (y >= 0) ? y : lastMoveY_;
+
+    if (result == 0) {
+        if (cx >= 0) enemyFieldWidget_->setCellState(cx, cy, CellState::HIT);
+        myTurn_ = true;
+        turnLabel_->setText("Попадание! Ваш ход");
+    } else if (result == 2) {
+        if (cx >= 0) enemyFieldWidget_->setCellState(cx, cy, CellState::HIT);
+        enemyShipsRemaining_ = std::max(0, enemyShipsRemaining_ - 1);
+        enemyShipsLabel_->setText(QString("Корабли соперника: %1").arg(enemyShipsRemaining_));
+        myTurn_ = true;
+        turnLabel_->setText("Корабль потоплен! Ваш ход");
+    } else if (result == 1) {
+        if (cx >= 0) enemyFieldWidget_->setCellState(cx, cy, CellState::MISS);
+        myTurn_ = false;
+        turnLabel_->setText("Промах. Ход противника");
+    } else if (result == 3) {
+        if (cx >= 0) enemyFieldWidget_->setCellState(cx, cy, CellState::HIT);
+        gameOver_ = true;
+        turnLabel_->setText("Вы победили!");
+    }
+}
+
+void GamePage::onOpponentMove(int x, int y, int result) {
+    if (result == 0) {
+        ownFieldWidget_->setCellState(x, y, CellState::HIT);
+        myTurn_ = false;
+        turnLabel_->setText("Противник попал! Ход противника");
+    } else if (result == 2) {
+        ownFieldWidget_->setCellState(x, y, CellState::HIT);
+        ownShipsRemaining_ = std::max(0, ownShipsRemaining_ - 1);
+        ownShipsLabel_->setText(QString("Ваши корабли: %1").arg(ownShipsRemaining_));
+        myTurn_ = false;
+        turnLabel_->setText("Противник потопил корабль! Ход противника");
+    } else if (result == 1) {
+        ownFieldWidget_->setCellState(x, y, CellState::MISS);
+        myTurn_ = true;
+        turnLabel_->setText("Противник промахнулся! Ваш ход");
+    } else if (result == 3) {
+        ownFieldWidget_->setCellState(x, y, CellState::HIT);
+        gameOver_ = true;
+        turnLabel_->setText("Вы проиграли!");
     }
 }
 
 void GamePage::onGameOver(int winnerId) {
-    turnLabel_->setText(QString("Победитель: Игрок %1").arg(winnerId));
+    Q_UNUSED(winnerId)
+    gameOver_ = true;
+    if (turnLabel_->text() != "Вы победили!" && turnLabel_->text() != "Вы проиграли!") {
+        turnLabel_->setText("Соперник вышел из игры, вы победили");
+    }
+}
+
+void GamePage::onYourTurn() {
+    if (!gameOver_) {
+        myTurn_ = true;
+        turnLabel_->setText("Ваш ход");
+    }
+}
+
+void GamePage::onGameInfo(QString ownLogin, int ownRating, QString oppLogin, int oppRating) {
+    ownFieldLabel_->setText(QString("Ваше поле\n%1 (рейтинг: %2)").arg(ownLogin).arg(ownRating));
+    enemyFieldLabel_->setText(QString("Поле противника\n%1 (рейтинг: %2)").arg(oppLogin).arg(oppRating));
 }

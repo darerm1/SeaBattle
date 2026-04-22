@@ -24,6 +24,8 @@ public:
 
     bool is_ready() const;
 
+    bool is_ship_sunk_at(int x, int y) const;
+
 private:
     std::vector<std::vector<CellState>> field_;
     std::vector<int> ships_ {0, 4, 3, 2, 1 };

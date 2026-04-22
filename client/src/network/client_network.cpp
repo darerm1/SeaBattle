@@ -55,22 +55,10 @@ void ClientNetwork::onReadyRead() {
 }
 
 void ClientNetwork::parseResponse(const QString& response) {
-    // Ответы сервера:
-    // "Logging successful"
-    // "Login failed. Invalid details."
-    // "New user registered"
-    // "Registration failed"
-    // "Ship successfully placed"
-    // "Failed to place ship: Invalid ship placement"
-    // "Move result: 0"  (0=HIT, 1=MISS, 3=GAME_OVER)
-    // "Game is starting, wait..."
-    // "Searching opponent..."
-    // "Field cleared"
-    
     if (response == "Logging successful") {
         emit loginResult(true, response);
     }
-    else if (response == "Login failed. Invalid details.") {
+    else if (response == "Login failed. Invalid details") {
         emit loginResult(false, response);
     }
     else if (response == "New user registered") {
@@ -87,16 +75,48 @@ void ClientNetwork::parseResponse(const QString& response) {
     }
     else if (response.startsWith("Move result: ")) {
         int result = response.mid(13).toInt();
-        emit moveResult(result, -1, -1);  // координаты не приходят, нужно хранить локально
+        emit moveResult(result, -1, -1);
     }
-    else if (response == "Game is starting, wait...") {
+    else if (response == "Opponent found") {
+        emit opponentFound();
+    }
+    else if (response == "Game started") {
         emit gameStarted();
+    }
+    else if (response == "Your turn") {
+        emit yourTurn();
     }
     else if (response == "Searching opponent...") {
         emit searchingOpponent();
     }
+    else if (response == "Waiting for opponent...") {
+    }
+    else if (response.startsWith("Opponent move: ")) {
+        QStringList parts = response.mid(15).split(' ');
+        if (parts.size() >= 3) {
+            emit opponentMove(parts[0].toInt(), parts[1].toInt(), parts[2].toInt());
+        }
+    }
+    else if (response.startsWith("Game over: ")) {
+        emit gameOver(response.mid(11).toInt());
+    }
     else if (response == "Field cleared") {
         emit fieldCleared();
+    }
+    else if (response == "Forfeited") {
+        emit gameForfeited();
+    }
+    else if (response == "Opponent disconnected") {
+        emit opponentLeft();
+    }
+    else if (response.startsWith("Game info: ")) {
+        QStringList parts = response.mid(11).split(' ');
+        if (parts.size() >= 4) {
+            emit gameInfo(parts[0], parts[1].toInt(), parts[2], parts[3].toInt());
+        }
+    }
+    else if (response.startsWith("Rating: ")) {
+        emit ratingUpdated(response.mid(8).toInt());
     }
     else {
         qDebug() << "Unknown response:" << response;

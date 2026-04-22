@@ -43,8 +43,9 @@ void Connection::close_connection() {
 }
 
 void Connection::send(const std::string& message) {
-    boost::asio::async_write(socket_, boost::asio::buffer(message),
-        [self = shared_from_this()](boost::system::error_code ec, size_t) {
+    auto buf = std::make_shared<std::string>(message);
+    boost::asio::async_write(socket_, boost::asio::buffer(*buf),
+        [self = shared_from_this(), buf](boost::system::error_code ec, size_t) {
             if (ec) self->close_connection();
         });
 }

@@ -3,18 +3,20 @@
 enum class ShotResult {
     HIT,
     MISS,
-    INVALID,
+    SUNK,
     GAME_OVER,
-    RESHOT
+    RESHOT,
+    INVALID
 };
 
 inline const char* shot_result_to_string(ShotResult result) {
     switch(result) {
         case ShotResult::HIT: return "HIT";
         case ShotResult::MISS: return "MISS";
-        case ShotResult::INVALID: return "INVALID";
+        case ShotResult::SUNK: return "SUNK";
         case ShotResult::GAME_OVER: return "GAME_OVER";
         case ShotResult::RESHOT: return "RESHOT";
+        case ShotResult::INVALID: return "INVALID";
         default: return "UNKNOWN";
     }
 }
