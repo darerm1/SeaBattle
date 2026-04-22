@@ -145,7 +145,6 @@ void LoginPage::setupUI() {
     loginButton_ = new QPushButton("Войти в аккаунт", this);
     signupButton_ = new QPushButton("Зарегистрироваться", this);
     playButton_ = new QPushButton("Играть", this);
-    
     loginButton_->setEnabled(false);
     signupButton_->setEnabled(false);
     playButton_->setEnabled(false);

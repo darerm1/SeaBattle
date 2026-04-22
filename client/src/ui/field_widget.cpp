@@ -2,7 +2,8 @@
 #include <QPainter>
 #include <QMouseEvent>
 
-FieldWidget::FieldWidget(QWidget* parent) : QWidget(parent), cells_(GRID_SIZE, QVector<CellState>(GRID_SIZE, CellState::EMPTY)) {
+FieldWidget::FieldWidget(QWidget* parent) : QWidget(parent), cells_(GRID_SIZE, QVector<CellState>(GRID_SIZE, CellState::EMPTY))
+                                           ,  blockedCells_(GRID_SIZE, QVector<bool>(GRID_SIZE, false)) {
     setFixedSize(GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE);
     setMouseTracking(true);
 }
@@ -80,6 +81,9 @@ void FieldWidget::mousePressEvent(QMouseEvent* event) {
     QPoint gridPos = mapToGrid(event->pos());
     if (gridPos.x() >= 0 && gridPos.x() < GRID_SIZE &&
         gridPos.y() >= 0 && gridPos.y() < GRID_SIZE) {
+        if (blockedCells_[gridPos.y()][gridPos.x()]) {
+            return;
+        }
         emit cellClicked(gridPos.x(), gridPos.y());
     }
 }
@@ -103,4 +107,34 @@ QPoint FieldWidget::mapToGrid(const QPoint& pos) const {
 
 QRect FieldWidget::getCellRect(int x, int y) const {
     return QRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+}
+
+void FieldWidget::markSunkShipCells(const QVector<QPoint>& shipCells) {
+    for (const QPoint& p : shipCells) {
+        setCellState(p.x(), p.y(), CellState::HIT);
+    }
+    
+    for (const QPoint& p : shipCells) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                int nx = p.x() + dx;
+                int ny = p.y() + dy;
+                if (nx >= 0 && nx < 10 && ny >= 0 && ny < 10) {
+                    if (getCellState(nx, ny) == CellState::EMPTY) {
+                        setCellState(nx, ny, CellState::MISS);
+                        setCellBlocked(nx, ny, true);
+                    }
+                }
+            }
+        }
+    }
+    update();
+}
+
+bool FieldWidget::isCellBlocked(int x, int y) const {
+    return blockedCells_[y][x];
+}
+
+void FieldWidget::setCellBlocked(int x, int y, bool blocked) {
+    blockedCells_[y][x] = blocked;
 }

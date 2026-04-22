@@ -25,16 +25,57 @@ void FieldSettingPage::setupUI() {
     mainLayout->addWidget(titleLabel);
     
     QHBoxLayout* shipPanelLayout = new QHBoxLayout();
-    shipPanelLayout->addWidget(new QLabel("Выберите корабль:", this));
+    QLabel* shipLabel = new QLabel("Выберите корабль:", this);
+    shipLabel->setStyleSheet("font-size: 14px; font-weight: bold; margin-right: 10px;");
+    shipPanelLayout->addWidget(shipLabel);
+
+    struct ShipData {
+        int size;
+        int width;
+    };
     
-    shipButtons_.append(new QPushButton("4-палубный", this));
-    shipButtons_.append(new QPushButton("3-палубный", this));
-    shipButtons_.append(new QPushButton("2-палубный", this));
-    shipButtons_.append(new QPushButton("1-палубный", this));
-    
-    for (int i = 0; i < shipButtons_.size(); ++i) {
-        shipPanelLayout->addWidget(shipButtons_[i]);
-        connect(shipButtons_[i], &QPushButton::clicked, [this, i]() { selectShip(i); });
+    QVector<ShipData> ships = {
+        {4, 120},
+        {3, 100},
+        {2, 80},
+        {1, 60}
+    };
+
+    for (const auto& ship : ships) {
+        QPushButton* btn = new QPushButton(QString::number(ship.size), this);
+        btn->setFixedSize(ship.width, 40);
+        
+        btn->setStyleSheet(QString(R"(
+            QPushButton {
+                background-color: #689bbf;
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+                border: none;
+                border-radius: 0px;
+                margin: 0px;
+            }
+            QPushButton:hover {
+                background-color: #62a8d7;
+            }
+            QPushButton:disabled {
+                background-color: #48708a;
+                color: #454c4f;
+            }
+        )"));
+        
+        QPolygon polygon;
+        polygon << QPoint(0, 0)
+                << QPoint(ship.width - 15, 0)
+                << QPoint(ship.width, 20)
+                << QPoint(ship.width - 15, 40)
+                << QPoint(0, 40);
+        
+        btn->setMask(polygon);
+        
+        shipPanelLayout->addWidget(btn);
+        shipButtons_.append(btn);
+        connect(btn, &QPushButton::clicked, [this, i = shipButtons_.size() - 1]() { selectShip(i); });
     }
     
     QPushButton* rotateButton = new QPushButton("Повернуть", this);

@@ -29,6 +29,12 @@ private:
     friend class TestGamePage;
 
     void setupUI();
+    QVector<QPoint> getShipCells(int x, int y) const;
+    bool isShipSunk(int x, int y) const;
+    bool isOwnShipSunk(int x, int y) const;
+    void markSunkShip(int x, int y);
+    void markOwnSunkShip(int x, int y);
+    QVector<QPoint> getOwnShipCells(int x, int y) const;
 
     ClientNetwork* network_;
 

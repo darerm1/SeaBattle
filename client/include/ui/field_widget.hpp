@@ -24,6 +24,9 @@ public:
     
     void setPreview(const QVector<QPoint>& cells, const QColor& color);
     void clearPreview();
+    void markSunkShipCells(const QVector<QPoint>& shipCells);
+    bool isCellBlocked(int x, int y) const;
+    void setCellBlocked(int x, int y, bool blocked);
 
 signals:
     void cellClicked(int x, int y);
@@ -43,6 +46,7 @@ private:
     static constexpr int CELL_SIZE = 30;
     
     QVector<QVector<CellState>> cells_;
+    QVector<QVector<bool>> blockedCells_;
     bool placementMode_ = false;
     
     QVector<QPoint> previewCells_;
