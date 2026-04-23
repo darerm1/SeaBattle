@@ -47,8 +47,8 @@ private slots:
         QVector<QVector<int>> field(10, QVector<int>(10, 0));
         page.initField(field);
         emit mock.moveResult(0, 3, 4);
-        QCOMPARE(page.enemyFieldWidget_->getCellState(3, 4), CellState::HIT);
-        QVERIFY(page.myTurn_);
+        QTRY_COMPARE(page.enemyFieldWidget_->getCellState(3, 4), CellState::HIT);
+        QTRY_VERIFY(page.myTurn_);
     }
     void testMoveResultMiss() {
         MockNetwork mock;
@@ -56,8 +56,8 @@ private slots:
         QVector<QVector<int>> field(10, QVector<int>(10, 0));
         page.initField(field);
         emit mock.moveResult(1, 2, 3);
-        QCOMPARE(page.enemyFieldWidget_->getCellState(2, 3), CellState::MISS);
-        QVERIFY(!page.myTurn_);
+        QTRY_COMPARE(page.enemyFieldWidget_->getCellState(2, 3), CellState::MISS);
+        QTRY_VERIFY(!page.myTurn_);
     }
     void testMoveResultSunk() {
         MockNetwork mock;
@@ -65,8 +65,8 @@ private slots:
         QVector<QVector<int>> field(10, QVector<int>(10, 0));
         page.initField(field);
         emit mock.moveResult(2, 1, 1);
-        QCOMPARE(page.enemyFieldWidget_->getCellState(1, 1), CellState::HIT);
-        QVERIFY(page.myTurn_);
+        QTRY_COMPARE(page.enemyFieldWidget_->getCellState(1, 1), CellState::HIT);
+        QTRY_VERIFY(page.myTurn_);
     }
     void testMoveResultGameOver() {
         MockNetwork mock;
@@ -74,8 +74,8 @@ private slots:
         QVector<QVector<int>> field(10, QVector<int>(10, 0));
         page.initField(field);
         emit mock.moveResult(3, 0, 0);
-        QVERIFY(page.gameOver_);
-        QCOMPARE(page.turnLabel_->text(), QString("Вы победили!"));
+        QTRY_VERIFY(page.gameOver_);
+        QTRY_COMPARE(page.turnLabel_->text(), QString("Вы победили!"));
     }
     void testOpponentMoveHit() {
         MockNetwork mock;
@@ -83,8 +83,8 @@ private slots:
         QVector<QVector<int>> field(10, QVector<int>(10, 0));
         page.initField(field);
         emit mock.opponentMove(5, 6, 0);
-        QCOMPARE(page.ownFieldWidget_->getCellState(5, 6), CellState::HIT);
-        QVERIFY(!page.myTurn_);
+        QTRY_COMPARE(page.ownFieldWidget_->getCellState(5, 6), CellState::HIT);
+        QTRY_VERIFY(!page.myTurn_);
     }
     void testOpponentMoveMiss() {
         MockNetwork mock;
@@ -92,8 +92,8 @@ private slots:
         QVector<QVector<int>> field(10, QVector<int>(10, 0));
         page.initField(field);
         emit mock.opponentMove(7, 8, 1);
-        QCOMPARE(page.ownFieldWidget_->getCellState(7, 8), CellState::MISS);
-        QVERIFY(page.myTurn_);
+        QTRY_COMPARE(page.ownFieldWidget_->getCellState(7, 8), CellState::MISS);
+        QTRY_VERIFY(page.myTurn_);
     }
     void testOpponentMoveSunk() {
         MockNetwork mock;
@@ -101,8 +101,8 @@ private slots:
         QVector<QVector<int>> field(10, QVector<int>(10, 0));
         page.initField(field);
         emit mock.opponentMove(4, 4, 2);
-        QCOMPARE(page.ownFieldWidget_->getCellState(4, 4), CellState::HIT);
-        QVERIFY(!page.myTurn_);
+        QTRY_COMPARE(page.ownFieldWidget_->getCellState(4, 4), CellState::HIT);
+        QTRY_VERIFY(!page.myTurn_);
     }
     void testOpponentMoveGameOver() {
         MockNetwork mock;
@@ -110,8 +110,8 @@ private slots:
         QVector<QVector<int>> field(10, QVector<int>(10, 0));
         page.initField(field);
         emit mock.opponentMove(0, 0, 3);
-        QVERIFY(page.gameOver_);
-        QCOMPARE(page.turnLabel_->text(), QString("Вы проиграли!"));
+        QTRY_VERIFY(page.gameOver_);
+        QTRY_COMPARE(page.turnLabel_->text(), QString("Вы проиграли!"));
     }
     void testGameOverFromForfeit() {
         MockNetwork mock;
@@ -129,7 +129,7 @@ private slots:
         page.initField(field);
         emit mock.moveResult(3, 0, 0);
         emit mock.gameOver(1);
-        QCOMPARE(page.turnLabel_->text(), QString("Вы победили!"));
+        QTRY_COMPARE(page.turnLabel_->text(), QString("Вы победили!"));
     }
     void testGameOverAfterLoss() {
         MockNetwork mock;
@@ -138,7 +138,7 @@ private slots:
         page.initField(field);
         emit mock.opponentMove(0, 0, 3);
         emit mock.gameOver(1);
-        QCOMPARE(page.turnLabel_->text(), QString("Вы проиграли!"));
+        QTRY_COMPARE(page.turnLabel_->text(), QString("Вы проиграли!"));
     }
     void testExitButtonWhenGameOverEmitsSignal() {
         MockNetwork mock;

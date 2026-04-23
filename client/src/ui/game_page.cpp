@@ -7,14 +7,30 @@
 #include <QPushButton>
 
 GamePage::GamePage(ClientNetwork* network, QWidget* parent) : QWidget(parent), network_(network) {
+    renderWorker_ = new RenderWorker();
+    renderWorker_->moveToThread(&renderThread_);
+
+    connect(&renderThread_, &QThread::finished, renderWorker_, &QObject::deleteLater);
+    connect(renderWorker_, &RenderWorker::updatesReady, this, &GamePage::applyUpdates);
+    connect(this, &GamePage::moveResultReceived,   renderWorker_, &RenderWorker::handleMoveResult);
+    connect(this, &GamePage::opponentMoveReceived, renderWorker_, &RenderWorker::handleOpponentMove);
+    connect(this, &GamePage::fieldInitialized,     renderWorker_, &RenderWorker::init);
+
+    renderThread_.start();
+
     setupUI();
 
-    connect(network_, &ClientNetwork::moveResult, this, &GamePage::onMoveResult);
-    connect(network_, &ClientNetwork::opponentMove, this, &GamePage::onOpponentMove);
-    connect(network_, &ClientNetwork::gameOver, this, &GamePage::onGameOver);
-    connect(network_, &ClientNetwork::yourTurn, this, &GamePage::onYourTurn);
+    connect(network_, &ClientNetwork::moveResult,    this, &GamePage::onMoveResult);
+    connect(network_, &ClientNetwork::opponentMove,  this, &GamePage::onOpponentMove);
+    connect(network_, &ClientNetwork::gameOver,      this, &GamePage::onGameOver);
+    connect(network_, &ClientNetwork::yourTurn,      this, &GamePage::onYourTurn);
     connect(network_, &ClientNetwork::gameForfeited, this, &GamePage::exitRequested);
-    connect(network_, &ClientNetwork::gameInfo, this, &GamePage::onGameInfo);
+    connect(network_, &ClientNetwork::gameInfo,      this, &GamePage::onGameInfo);
+}
+
+GamePage::~GamePage() {
+    renderThread_.quit();
+    renderThread_.wait();
 }
 
 void GamePage::setupUI() {
@@ -33,15 +49,6 @@ void GamePage::setupUI() {
     enemyFieldWidget_ = new FieldWidget(this);
     enemyLayout->addWidget(enemyFieldLabel_);
     enemyLayout->addWidget(enemyFieldWidget_);
-
-    connect(enemyFieldWidget_, &FieldWidget::cellClicked, [this](int x, int y) {
-        if (!myTurn_ || gameOver_) return;
-        lastMoveX_ = x;
-        lastMoveY_ = y;
-        myTurn_ = false;
-        turnLabel_->setText("Ход противника...");
-        network_->sendCommand(QString("move %1 %2").arg(x).arg(y));
-    });
 
     connect(enemyFieldWidget_, &FieldWidget::cellClicked, [this](int x, int y) {
         if (!myTurn_ || gameOver_) return;
@@ -91,69 +98,22 @@ void GamePage::initField(const QVector<QVector<int>>& field) {
     ownFieldLabel_->setText("Ваше поле");
     enemyFieldLabel_->setText("Поле противника");
 
-    for (int y = 0; y < field.size(); ++y) {
-        for (int x = 0; x < field[y].size(); ++x) {
+    for (int y = 0; y < field.size(); ++y)
+        for (int x = 0; x < field[y].size(); ++x)
             if (field[y][x] == 1)
                 ownFieldWidget_->setCellState(x, y, CellState::SHIP);
-        }
-    }
+
+    emit fieldInitialized(field);
 }
 
 void GamePage::onMoveResult(int result, int x, int y) {
     int cx = (x >= 0) ? x : lastMoveX_;
     int cy = (y >= 0) ? y : lastMoveY_;
-
-    if (result == 0) {
-        if (cx >= 0) {
-            enemyFieldWidget_->setCellState(cx, cy, CellState::HIT);
-            if (isShipSunk(cx, cy)) {
-                markSunkShip(cx, cy);
-                myTurn_ = true;
-                turnLabel_->setText("Корабль потоплен! Ваш ход");
-                return;
-            }
-            else{
-                turnLabel_->setText("Попадание! Ваш ход");
-            }
-        }
-        myTurn_ = true;
-    } else if (result == 2) {
-        if (cx >= 0) {
-            enemyFieldWidget_->setCellState(cx, cy, CellState::HIT);
-            markSunkShip(cx, cy);
-        }
-        myTurn_ = true;
-        turnLabel_->setText("Корабль потоплен! Ваш ход");
-    } else if (result == 1) {
-        if (cx >= 0) enemyFieldWidget_->setCellState(cx, cy, CellState::MISS);
-        myTurn_ = false;
-        turnLabel_->setText("Промах. Ход противника");
-    } else if (result == 3) {
-        if (cx >= 0) enemyFieldWidget_->setCellState(cx, cy, CellState::HIT);
-        gameOver_ = true;
-        turnLabel_->setText("Вы победили!");
-    }
+    emit moveResultReceived(result, cx, cy);
 }
 
 void GamePage::onOpponentMove(int x, int y, int result) {
-    if (result == 0 || result == 2) {
-        ownFieldWidget_->setCellState(x, y, CellState::HIT);
-        if (isOwnShipSunk(x, y)) {
-            markOwnSunkShip(x, y);
-            turnLabel_->setText("Противник потопил ваш корабль! Ход противника");
-        } else {
-            turnLabel_->setText("Противник попал! Ход противника");
-        }
-        myTurn_ = false;
-    } else if (result == 1) {
-        ownFieldWidget_->setCellState(x, y, CellState::MISS);
-        myTurn_ = true;
-        turnLabel_->setText("Противник промахнулся! Ваш ход");
-    } else if (result == 3) {
-        ownFieldWidget_->setCellState(x, y, CellState::HIT);
-        gameOver_ = true;
-        turnLabel_->setText("Вы проиграли!");
-    }
+    emit opponentMoveReceived(x, y, result);
 }
 
 void GamePage::onGameOver(int winnerId) {
@@ -176,145 +136,14 @@ void GamePage::onGameInfo(QString ownLogin, int ownRating, QString oppLogin, int
     enemyFieldLabel_->setText(QString("Поле противника\n%1 (рейтинг: %2)").arg(oppLogin).arg(oppRating));
 }
 
-QVector<QPoint> GamePage::getShipCells(int x, int y) const {
-    QVector<QPoint> cells;
-    if (enemyFieldWidget_->getCellState(x, y) != CellState::HIT) return cells;
-    
-    qDebug() << "getShipCells called for" << x << y;
-    
-    bool isHorizontal = false;
-    if (x > 0 && enemyFieldWidget_->getCellState(x - 1, y) == CellState::HIT) {
-        isHorizontal = true;
-    } else if (x < 9 && enemyFieldWidget_->getCellState(x + 1, y) == CellState::HIT) {
-        isHorizontal = true;
+void GamePage::applyUpdates(QVector<CellUpdate> updates, bool myTurn, QString label, bool gameOver) {
+    for (const CellUpdate& u : updates) {
+        FieldWidget* widget = u.isEnemy ? enemyFieldWidget_ : ownFieldWidget_;
+        widget->setCellState(u.x, u.y, u.state);
+        if (u.blocked)
+            widget->setCellBlocked(u.x, u.y, true);
     }
-    
-    if (isHorizontal) {
-        int left = x;
-        while (left > 0 && enemyFieldWidget_->getCellState(left - 1, y) == CellState::HIT) {
-            left--;
-        }
-        int right = x;
-        while (right < 9 && enemyFieldWidget_->getCellState(right + 1, y) == CellState::HIT) {
-            right++;
-        }
-        for (int i = left; i <= right; ++i) {
-            cells.append(QPoint(i, y));
-        }
-        qDebug() << "Horizontal ship cells count:" << cells.size();
-    } else {
-        int top = y;
-        while (top > 0 && enemyFieldWidget_->getCellState(x, top - 1) == CellState::HIT) {
-            top--;
-        }
-        int bottom = y;
-        while (bottom < 9 && enemyFieldWidget_->getCellState(x, bottom + 1) == CellState::HIT) {
-            bottom++;
-        }
-        for (int i = top; i <= bottom; ++i) {
-            cells.append(QPoint(x, i));
-        }
-        qDebug() << "Vertical ship cells count:" << cells.size();
-    }
-    return cells;
-}
-
-bool GamePage::isShipSunk(int x, int y) const {
-    QVector<QPoint> cells = getShipCells(x, y);
-    if (cells.isEmpty()) return false;
-    
-    for (const QPoint& p : cells) {
-        if (enemyFieldWidget_->getCellState(p.x(), p.y()) != CellState::HIT) {
-            return false;
-        }
-    }
-    return true;
-}
-
-void GamePage::markSunkShip(int x, int y) {
-    QVector<QPoint> cells = getShipCells(x, y);
-    if (cells.isEmpty()) return;
-    
-    for (const QPoint& p : cells) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dx = -1; dx <= 1; ++dx) {
-                int nx = p.x() + dx;
-                int ny = p.y() + dy;
-                if (nx >= 0 && nx < 10 && ny >= 0 && ny < 10) {
-                    if (enemyFieldWidget_->getCellState(nx, ny) == CellState::EMPTY) {
-                        enemyFieldWidget_->setCellState(nx, ny, CellState::MISS);
-                    }
-                }
-            }
-        }
-    }
-    update();
-}
-
-void GamePage::markOwnSunkShip(int x, int y) {
-    QVector<QPoint> cells = getOwnShipCells(x, y);
-    if (cells.isEmpty()) return;
-    
-    for (const QPoint& p : cells) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dx = -1; dx <= 1; ++dx) {
-                int nx = p.x() + dx;
-                int ny = p.y() + dy;
-                if (nx >= 0 && nx < 10 && ny >= 0 && ny < 10) {
-                    if (ownFieldWidget_->getCellState(nx, ny) == CellState::EMPTY) {
-                        ownFieldWidget_->setCellState(nx, ny, CellState::MISS);
-                        ownFieldWidget_->setCellBlocked(nx, ny, true);
-                    }
-                }
-            }
-        }
-    }
-}
-
-QVector<QPoint> GamePage::getOwnShipCells(int x, int y) const {
-    QVector<QPoint> cells;
-    if (ownFieldWidget_->getCellState(x, y) != CellState::HIT) return cells;    
-
-    int left = x;
-    while (left > 0 && ownFieldWidget_->getCellState(left - 1, y) == CellState::HIT) {
-        left--;
-    }
-
-    int right = x;
-    while (right < 9 && ownFieldWidget_->getCellState(right + 1, y) == CellState::HIT) {
-        right++;
-    }
-    
-    if (right > left) {
-        for (int i = left; i <= right; ++i) {
-            cells.append(QPoint(i, y));
-        }
-        return cells;
-    }
-    
-    int top = y;
-    while (top > 0 && ownFieldWidget_->getCellState(x, top - 1) == CellState::HIT) {
-        top--;
-    }
-    int bottom = y;
-    while (bottom < 9 && ownFieldWidget_->getCellState(x, bottom + 1) == CellState::HIT) {
-        bottom++;
-    }
-    
-    for (int i = top; i <= bottom; ++i) {
-        cells.append(QPoint(x, i));
-    }
-    return cells;
-}
-
-bool GamePage::isOwnShipSunk(int x, int y) const {
-    QVector<QPoint> cells = getOwnShipCells(x, y);
-    if (cells.isEmpty()) return false;
-    
-    for (const QPoint& p : cells) {
-        if (ownFieldWidget_->getCellState(p.x(), p.y()) != CellState::HIT) {
-            return false;
-        }
-    }
-    return true;
+    myTurn_ = myTurn;
+    if (gameOver) gameOver_ = true;
+    if (!label.isEmpty()) turnLabel_->setText(label);
 }

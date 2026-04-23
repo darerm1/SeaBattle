@@ -85,6 +85,9 @@ ShotResult Session::make_move(int player_id, int x, int y) {
             result = ShotResult::GAME_OVER;
             game_status_ = GameStatus::FINISHED;
             Logger::log("Session ", game_id_, ": HIT and game over. Winner: player ", winner_id_);
+        } else if (opponent_field.is_ship_sunk_at(x, y)) {
+            result = ShotResult::SUNK;
+            Logger::log("Session ", game_id_, ": ship sunk at (", x, ",", y, "), player ", player_id, " shoots again");
         } else {
             Logger::log("Session ", game_id_, ": HIT, player ", player_id, " shoots again");
         }

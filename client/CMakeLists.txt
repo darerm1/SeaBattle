@@ -7,6 +7,8 @@ set(CMAKE_AUTOUIC ON)
 set(CLIENT_LIB_SOURCES
     src/ui/main_window.cpp
     src/network/client_network.cpp
+    src/network/network_worker.cpp
+    src/ui/render_worker.cpp
     src/ui/field_setting_page.cpp
     src/ui/field_widget.cpp
     src/ui/game_page.cpp
@@ -16,6 +18,8 @@ set(CLIENT_LIB_SOURCES
 set(CLIENT_HEADERS
     include/ui/main_window.hpp
     include/network/client_network.hpp
+    include/network/network_worker.hpp
+    include/ui/render_worker.hpp
     include/ui/field_setting_page.hpp
     include/ui/field_widget.hpp
     include/ui/game_page.hpp

@@ -29,31 +29,29 @@ protected:
         EXPECT_EQ(session->make_move(player_id, 0, 0), ShotResult::HIT);
         EXPECT_EQ(session->make_move(player_id, 1, 0), ShotResult::HIT);
         EXPECT_EQ(session->make_move(player_id, 2, 0), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 3, 0), ShotResult::HIT);
-        
+        EXPECT_EQ(session->make_move(player_id, 3, 0), ShotResult::SUNK);
+
         EXPECT_EQ(session->make_move(player_id, 5, 0), ShotResult::HIT);
         EXPECT_EQ(session->make_move(player_id, 6, 0), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 7, 0), ShotResult::HIT);
-        
+        EXPECT_EQ(session->make_move(player_id, 7, 0), ShotResult::SUNK);
+
         EXPECT_EQ(session->make_move(player_id, 0, 2), ShotResult::HIT);
         EXPECT_EQ(session->make_move(player_id, 1, 2), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 2, 2), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 4, 2), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 5, 2), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 7, 2), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 8, 2), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 0, 4), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 1, 4), ShotResult::HIT);
+        EXPECT_EQ(session->make_move(player_id, 2, 2), ShotResult::SUNK);
 
-        EXPECT_EQ(session->make_move(player_id, 3, 4), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 5, 4), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 7, 4), ShotResult::HIT);
-        
+        EXPECT_EQ(session->make_move(player_id, 4, 2), ShotResult::HIT);
+        EXPECT_EQ(session->make_move(player_id, 5, 2), ShotResult::SUNK);
+
+        EXPECT_EQ(session->make_move(player_id, 7, 2), ShotResult::HIT);
+        EXPECT_EQ(session->make_move(player_id, 8, 2), ShotResult::SUNK);
+
+        EXPECT_EQ(session->make_move(player_id, 0, 4), ShotResult::HIT);
+        EXPECT_EQ(session->make_move(player_id, 1, 4), ShotResult::SUNK);
+
+        EXPECT_EQ(session->make_move(player_id, 3, 4), ShotResult::SUNK);
+        EXPECT_EQ(session->make_move(player_id, 5, 4), ShotResult::SUNK);
+        EXPECT_EQ(session->make_move(player_id, 7, 4), ShotResult::SUNK);
+
         EXPECT_EQ(session->make_move(player_id, 9, 4), ShotResult::GAME_OVER);
     }
 

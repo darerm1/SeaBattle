@@ -1,28 +1,24 @@
 #pragma once
 
 #include <QObject>
-#include <QThread>
+#include <QTcpSocket>
+#include <QByteArray>
 #include <QString>
-#include "network/network_worker.hpp"
 
-class ClientNetwork : public QObject {
+class NetworkWorker : public QObject {
     Q_OBJECT
 
 public:
-    explicit ClientNetwork(QObject* parent = nullptr);
-    ~ClientNetwork();
+    explicit NetworkWorker(QObject* parent = nullptr);
 
+public slots:
     void connectToServer(const QString& host, quint16 port);
     void disconnectFromServer();
-    virtual void sendCommand(const QString& command);
-    bool isConnected() const { return connected_; }
+    void sendCommand(const QString& command);
 
 signals:
     void connected();
     void disconnected();
-    void connectRequested(QString host, quint16 port);
-    void disconnectRequested();
-    void commandRequested(QString command);
     void errorOccurred(const QString& error);
     void loginResult(bool success, const QString& message);
     void signupResult(bool success, const QString& message);
@@ -40,11 +36,15 @@ signals:
     void ratingUpdated(int rating);
     void opponentLeft();
 
-protected:
-    void parseResponse(const QString& response);
+private slots:
+    void onConnected();
+    void onDisconnected();
+    void onReadyRead();
+    void onError(QAbstractSocket::SocketError error);
 
 private:
-    NetworkWorker* networkWorker_;
-    QThread networkThread_;
-    bool connected_ = false;
+    void parseResponse(const QString& response);
+
+    QTcpSocket* socket_;
+    QByteArray buffer_;
 };
