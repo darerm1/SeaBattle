@@ -71,7 +71,7 @@ TEST_F(CommandTest, LoginCommandSuccess) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     EXPECT_TRUE(login_success);
-    EXPECT_EQ(last_response, "Logging successful");
+    EXPECT_EQ(last_response, "Logging successful\nRating: 1000\n");
 }
 
 TEST_F(CommandTest, LoginCommandWrongPassword) {
@@ -89,7 +89,7 @@ TEST_F(CommandTest, LoginCommandWrongPassword) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     EXPECT_FALSE(login_success);
-    EXPECT_EQ(last_response, "Login failed. Invalid details.");
+    EXPECT_EQ(last_response, "Login failed. Invalid details\n");
 }
 
 TEST_F(CommandTest, LoginCommandMissingArgs) {
@@ -100,7 +100,7 @@ TEST_F(CommandTest, LoginCommandMissingArgs) {
     ctx.send_response = [&](const std::string& msg) { response = msg; };
 
     cmd->handle(args, ctx);
-    EXPECT_EQ(response, "Missing login or password, try again");
+    EXPECT_EQ(response, "Missing login or password, try again\n");
 }
 
 TEST_F(CommandTest, SignUpCommandSuccess) {
@@ -116,7 +116,7 @@ TEST_F(CommandTest, SignUpCommandSuccess) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     EXPECT_TRUE(registered);
-    EXPECT_EQ(response, "New user registered");
+    EXPECT_EQ(response, "New user registered\nRating: 1000\n");
 }
 
 TEST_F(CommandTest, SignUpCommandDuplicateLogin) {
@@ -134,7 +134,7 @@ TEST_F(CommandTest, SignUpCommandDuplicateLogin) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     EXPECT_FALSE(registered);
-    EXPECT_EQ(response, "Reqistration failed");
+    EXPECT_EQ(response, "Registration failed\n");
 }
 
 TEST_F(CommandTest, PlaceShipCommandValid) {
@@ -161,7 +161,7 @@ TEST_F(CommandTest, PlaceShipCommandValid) {
     cmd->handle(args, ctx);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    EXPECT_EQ(response, "Ship successfully placed");
+    EXPECT_EQ(response, "Ship successfully placed\n");
 }
 
 TEST_F(CommandTest, PlaceShipCommandNoPlayer) {
@@ -171,7 +171,7 @@ TEST_F(CommandTest, PlaceShipCommandNoPlayer) {
     auto cmd = std::make_shared<PlaceShipCommand>(*session);
     std::vector<std::string> args = {"place", "4", "0", "0", "1"};
     cmd->handle(args, ctx);
-    EXPECT_EQ(response, "ERROR: Not authorized");
+    EXPECT_EQ(response, "ERROR: Not authorized\n");
 }
 
 TEST_F(CommandTest, MoveCommandSuccess) {
@@ -221,5 +221,5 @@ TEST_F(CommandTest, MoveCommandSuccess) {
     cmd->handle(args, ctx);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    EXPECT_EQ(response, "Move result: 0");
+    EXPECT_EQ(response, "Move result: 0\n");
 }

@@ -16,6 +16,8 @@ public:
 
     ~SessionManager();
 
+    void set_notify_callback(std::function<void(int, const std::string&)> fn);
+
     void add_to_queue_async(std::shared_ptr<Player> player);
 
     void make_move_async(int player_id, int game_id, int x, int y, std::function<void(ShotResult)> callback);
@@ -25,6 +27,8 @@ public:
     void clear_field_async(int player_id, int game_id, std::function<void(bool)> callback);
 
     void set_player_ready(int player_id, int game_id);
+
+    void forfeit_game_async(int player_id, int game_id, std::function<void()> callback);
 
     std::shared_ptr<Session> get_session(int game_id);
     
@@ -41,12 +45,15 @@ private:
     
     void end_game(int game_id);
 
+    void cancel_game(int game_id);
+
     Queue queue_;
     std::unordered_map<int, std::shared_ptr<Session>> sessions_;
     std::unordered_map<int, int> player_to_game_;
     ThreadPool& thread_pool_;
     DatabaseManager& db_manager_;
     std::atomic<int> next_game_id_{0};
+    std::function<void(int, const std::string&)> notify_player_;
 
     std::mutex sessions_mutex_;
 };

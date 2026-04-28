@@ -98,6 +98,22 @@ const std::vector<std::vector<CellState>>& GameField::get_cells() const {
     return field_;
 }
 
+bool GameField::is_ship_sunk_at(int x, int y) const {
+    int x_start = x, x_end = x;
+    while (x_start > 0 && field_[y][x_start-1] == CellState::HIT) x_start--;
+    while (x_end < FIELD_SIZE-1 && field_[y][x_end+1] == CellState::HIT) x_end++;
+
+    int y_start = y, y_end = y;
+    while (y_start > 0 && field_[y_start-1][x] == CellState::HIT) y_start--;
+    while (y_end < FIELD_SIZE-1 && field_[y_end+1][x] == CellState::HIT) y_end++;
+
+    if (x_start > 0 && field_[y][x_start-1] == CellState::SHIP) return false;
+    if (x_end < FIELD_SIZE-1 && field_[y][x_end+1] == CellState::SHIP) return false;
+    if (y_start > 0 && field_[y_start-1][x] == CellState::SHIP) return false;
+    if (y_end < FIELD_SIZE-1 && field_[y_end+1][x] == CellState::SHIP) return false;
+    return true;
+}
+
 bool GameField::is_ready() const {
     for (int i = 1; i <= 4; ++i) {
         if (ships_[i] != 0) return false;

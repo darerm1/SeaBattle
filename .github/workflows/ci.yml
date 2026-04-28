@@ -16,7 +16,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake g++ libboost-thread-dev libsqlite3-dev
+        sudo apt-get install -y cmake g++ libboost-thread-dev libsqlite3-dev \
+            qt6-base-dev qt6-base-private-dev libqt6widgets6 libqt6network6 xvfb
 
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Debug
@@ -25,4 +26,4 @@ jobs:
       run: cmake --build build --parallel
 
     - name: Run tests
-      run: cd build && ctest --output-on-failure
+      run: cd build && xvfb-run ctest --output-on-failure

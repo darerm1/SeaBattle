@@ -21,6 +21,8 @@ public:
 
     void remove_connection(int connection_id);
 
+    void send_to_player(int player_id, const std::string& message);
+
 private:
     boost::asio::io_context& context_;
     boost::asio::ip::tcp::acceptor acceptor_;

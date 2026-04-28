@@ -12,7 +12,7 @@ protected:
         session = std::make_shared<Session>(1, p1, p2);
     }
 
-        void place_all_ships_for_player(int player_id) {
+    void place_all_ships_for_player(int player_id) {
         EXPECT_TRUE(session->place_ship(player_id, 4, 0, 0, true));
         EXPECT_TRUE(session->place_ship(player_id, 3, 5, 0, true));
         EXPECT_TRUE(session->place_ship(player_id, 3, 0, 2, true));
@@ -29,31 +29,29 @@ protected:
         EXPECT_EQ(session->make_move(player_id, 0, 0), ShotResult::HIT);
         EXPECT_EQ(session->make_move(player_id, 1, 0), ShotResult::HIT);
         EXPECT_EQ(session->make_move(player_id, 2, 0), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 3, 0), ShotResult::HIT);
-        
+        EXPECT_EQ(session->make_move(player_id, 3, 0), ShotResult::SUNK);
+
         EXPECT_EQ(session->make_move(player_id, 5, 0), ShotResult::HIT);
         EXPECT_EQ(session->make_move(player_id, 6, 0), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 7, 0), ShotResult::HIT);
-        
+        EXPECT_EQ(session->make_move(player_id, 7, 0), ShotResult::SUNK);
+
         EXPECT_EQ(session->make_move(player_id, 0, 2), ShotResult::HIT);
         EXPECT_EQ(session->make_move(player_id, 1, 2), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 2, 2), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 4, 2), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 5, 2), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 7, 2), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 8, 2), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 0, 4), ShotResult::HIT);
-        EXPECT_EQ(session->make_move(player_id, 1, 4), ShotResult::HIT);
+        EXPECT_EQ(session->make_move(player_id, 2, 2), ShotResult::SUNK);
 
-        EXPECT_EQ(session->make_move(player_id, 3, 4), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 5, 4), ShotResult::HIT);
-        
-        EXPECT_EQ(session->make_move(player_id, 7, 4), ShotResult::HIT);
-        
+        EXPECT_EQ(session->make_move(player_id, 4, 2), ShotResult::HIT);
+        EXPECT_EQ(session->make_move(player_id, 5, 2), ShotResult::SUNK);
+
+        EXPECT_EQ(session->make_move(player_id, 7, 2), ShotResult::HIT);
+        EXPECT_EQ(session->make_move(player_id, 8, 2), ShotResult::SUNK);
+
+        EXPECT_EQ(session->make_move(player_id, 0, 4), ShotResult::HIT);
+        EXPECT_EQ(session->make_move(player_id, 1, 4), ShotResult::SUNK);
+
+        EXPECT_EQ(session->make_move(player_id, 3, 4), ShotResult::SUNK);
+        EXPECT_EQ(session->make_move(player_id, 5, 4), ShotResult::SUNK);
+        EXPECT_EQ(session->make_move(player_id, 7, 4), ShotResult::SUNK);
+
         EXPECT_EQ(session->make_move(player_id, 9, 4), ShotResult::GAME_OVER);
     }
 
@@ -68,7 +66,7 @@ TEST_F(SessionTest, FirstTurnDeterminedByLowerRating) {
 TEST_F(SessionTest, PlaceShipOnlyInSetup) {
     place_all_ships_for_player(1);
     place_all_ships_for_player(2);
-    EXPECT_TRUE(session->set_player_ready(1));
+    EXPECT_FALSE(session->set_player_ready(1));
     EXPECT_TRUE(session->set_player_ready(2));
     
     EXPECT_FALSE(session->place_ship(1, 3, 2, 2, true));
@@ -77,7 +75,7 @@ TEST_F(SessionTest, PlaceShipOnlyInSetup) {
 TEST_F(SessionTest, PlayersReadyStartsGame) {
     place_all_ships_for_player(1);
     place_all_ships_for_player(2);
-    EXPECT_TRUE(session->set_player_ready(1));
+    EXPECT_FALSE(session->set_player_ready(1));
     EXPECT_TRUE(session->set_player_ready(2));
     
     EXPECT_TRUE(session->game_is_started());
@@ -91,7 +89,7 @@ TEST_F(SessionTest, CannotMakeMoveBeforeGameStart) {
 TEST_F(SessionTest, MakeMoveInvalidTurn) {
     place_all_ships_for_player(1);
     place_all_ships_for_player(2);
-    EXPECT_TRUE(session->set_player_ready(1));
+    EXPECT_FALSE(session->set_player_ready(1));
     EXPECT_TRUE(session->set_player_ready(2));
     
     ShotResult result = session->make_move(2, 0, 0);
@@ -101,7 +99,7 @@ TEST_F(SessionTest, MakeMoveInvalidTurn) {
 TEST_F(SessionTest, MakeMoveValidTurn) {
     place_all_ships_for_player(1);
     place_all_ships_for_player(2);
-    EXPECT_TRUE(session->set_player_ready(1));
+    EXPECT_FALSE(session->set_player_ready(1));
     EXPECT_TRUE(session->set_player_ready(2));
     
     ShotResult result = session->make_move(1, 5, 0);
@@ -111,7 +109,7 @@ TEST_F(SessionTest, MakeMoveValidTurn) {
 TEST_F(SessionTest, TurnSwitchesAfterMiss) {
     place_all_ships_for_player(1);
     place_all_ships_for_player(2);
-    EXPECT_TRUE(session->set_player_ready(1));
+    EXPECT_FALSE(session->set_player_ready(1));
     EXPECT_TRUE(session->set_player_ready(2));
     
     ShotResult result = session->make_move(1, 1, 1);
@@ -122,7 +120,7 @@ TEST_F(SessionTest, TurnSwitchesAfterMiss) {
 TEST_F(SessionTest, TurnDoesNotSwitchAfterHit) {
     place_all_ships_for_player(1);
     place_all_ships_for_player(2);
-    EXPECT_TRUE(session->set_player_ready(1));
+    EXPECT_FALSE(session->set_player_ready(1));
     EXPECT_TRUE(session->set_player_ready(2));
     
     ShotResult result = session->make_move(1, 5, 0);
@@ -133,7 +131,7 @@ TEST_F(SessionTest, TurnDoesNotSwitchAfterHit) {
 TEST_F(SessionTest, GameOverWhenAllShipsSunk) {
     place_all_ships_for_player(1);
     place_all_ships_for_player(2);
-    EXPECT_TRUE(session->set_player_ready(1));
+    EXPECT_FALSE(session->set_player_ready(1));
     EXPECT_TRUE(session->set_player_ready(2));
     
     kill_all_opponents_ships(1);
@@ -147,7 +145,7 @@ TEST_F(SessionTest, RatingUpdateAfterWin) {
     
     place_all_ships_for_player(1);
     place_all_ships_for_player(2);
-    EXPECT_TRUE(session->set_player_ready(1));
+    EXPECT_FALSE(session->set_player_ready(1));
     EXPECT_TRUE(session->set_player_ready(2));
     kill_all_opponents_ships(1);
     EXPECT_TRUE(session->game_is_over());
@@ -168,7 +166,7 @@ TEST_F(SessionTest, TimeoutDoesNotTriggerImmediately) {
     place_all_ships_for_player(1);
     place_all_ships_for_player(2);
 
-    EXPECT_TRUE(session->set_player_ready(1));
+    EXPECT_FALSE(session->set_player_ready(1));
     EXPECT_TRUE(session->set_player_ready(2));
     EXPECT_FALSE(session->check_timeout());
 }
